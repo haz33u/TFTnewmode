@@ -17,6 +17,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Builds and displays the champion shop as a Bukkit chest GUI.
@@ -33,6 +34,29 @@ public class ShopUI {
     static final String    SHOP_TITLE           = "✦ AstralClash Shop ✦";
     static final Component SHOP_TITLE_COMPONENT  =
             Component.text(SHOP_TITLE, NamedTextColor.LIGHT_PURPLE);
+
+    /**
+     * Custom Model Data values — must match resource-pack/assets/minecraft/models/item/*.json
+     * Format: tier * 1000 + index within tier (1-based)
+     */
+    static final Map<String, Integer> CHAMPION_CMD = Map.ofEntries(
+            Map.entry("asta",      1001),
+            Map.entry("danheng",   1002),
+            Map.entry("march7th",  1003),
+            Map.entry("natasha",   1004),
+            Map.entry("bronya",    2001),
+            Map.entry("pela",      2002),
+            Map.entry("himeko",    3001),
+            Map.entry("kafka",     3002),
+            Map.entry("luocha",    3003),
+            Map.entry("welt",      3004),
+            Map.entry("blade",     4001),
+            Map.entry("fuxuan",    4002),
+            Map.entry("jingyuan",  4003),
+            Map.entry("seele",     4004),
+            Map.entry("gepard",    5001),
+            Map.entry("jingliu",   5002)
+    );
 
     private static final int SLOT_CHAMPION_START = 0; // slots 0-4 = champions
     private static final int SLOT_REROLL        = 5;
@@ -93,6 +117,10 @@ public class ShopUI {
         Material mat = tierMaterial(c.getTier().getCost());
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
+
+        // Apply Custom Model Data so the resource pack can show the champion portrait
+        Integer cmd = CHAMPION_CMD.get(c.getId());
+        if (cmd != null) meta.setCustomModelData(cmd);
 
         meta.displayName(Component.text(c.getDisplayName(),
                 c.getTraits().isEmpty() ? NamedTextColor.WHITE

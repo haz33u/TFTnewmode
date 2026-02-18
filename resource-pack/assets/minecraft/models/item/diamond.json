@@ -1,0 +1,12 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "item/diamond"
+  },
+  "overrides": [
+    { "predicate": { "custom_model_data": 3001 }, "model": "astralclash:item/champion/himeko" },
+    { "predicate": { "custom_model_data": 3002 }, "model": "astralclash:item/champion/kafka" },
+    { "predicate": { "custom_model_data": 3003 }, "model": "astralclash:item/champion/luocha" },
+    { "predicate": { "custom_model_data": 3004 }, "model": "astralclash:item/champion/welt" }
+  ]
+}

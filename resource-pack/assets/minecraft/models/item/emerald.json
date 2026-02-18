@@ -1,0 +1,12 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "item/emerald"
+  },
+  "overrides": [
+    { "predicate": { "custom_model_data": 4001 }, "model": "astralclash:item/champion/blade" },
+    { "predicate": { "custom_model_data": 4002 }, "model": "astralclash:item/champion/fuxuan" },
+    { "predicate": { "custom_model_data": 4003 }, "model": "astralclash:item/champion/jingyuan" },
+    { "predicate": { "custom_model_data": 4004 }, "model": "astralclash:item/champion/seele" }
+  ]
+}

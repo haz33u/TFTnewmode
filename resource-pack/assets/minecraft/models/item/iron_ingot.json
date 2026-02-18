@@ -1,0 +1,12 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "item/iron_ingot"
+  },
+  "overrides": [
+    { "predicate": { "custom_model_data": 1001 }, "model": "astralclash:item/champion/asta" },
+    { "predicate": { "custom_model_data": 1002 }, "model": "astralclash:item/champion/danheng" },
+    { "predicate": { "custom_model_data": 1003 }, "model": "astralclash:item/champion/march7th" },
+    { "predicate": { "custom_model_data": 1004 }, "model": "astralclash:item/champion/natasha" }
+  ]
+}

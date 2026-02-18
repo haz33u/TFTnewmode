@@ -68,6 +68,10 @@ public class BenchUI {
         ItemStack item = new ItemStack(mat);
         ItemMeta  meta = item.getItemMeta();
 
+        // Custom Model Data — links to resource pack portrait texture
+        Integer cmd = ShopUI.CHAMPION_CMD.get(c.getId());
+        if (cmd != null) meta.setCustomModelData(cmd);
+
         // Name: "★★ Seele" colored by first trait
         String stars = "★".repeat(ci.getStarLevel().getStars());
         meta.displayName(Component.text(stars + " " + c.getDisplayName(),

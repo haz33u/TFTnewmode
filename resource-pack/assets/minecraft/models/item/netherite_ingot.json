@@ -1,0 +1,10 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "item/netherite_ingot"
+  },
+  "overrides": [
+    { "predicate": { "custom_model_data": 5001 }, "model": "astralclash:item/champion/gepard" },
+    { "predicate": { "custom_model_data": 5002 }, "model": "astralclash:item/champion/jingliu" }
+  ]
+}
