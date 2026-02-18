@@ -1,0 +1,110 @@
+# ============================================================
+#   AstralClash — TFT-style auto-chess with Honkai: Star Rail
+# ============================================================
+
+database:
+  type: SQLITE            # SQLITE or MYSQL
+  host: localhost
+  port: 3306
+  name: astralclash
+  user: root
+  password: ""
+  pool-size: 10
+
+game:
+  # Minimum players to auto-start a lobby
+  min-players: 2
+  # Maximum players per game (TFT standard: 8)
+  max-players: 8
+  # Countdown before game starts (seconds)
+  lobby-countdown: 60
+  # Planning phase duration (seconds)
+  planning-duration: 35
+  # Combat phase max duration (seconds)
+  combat-duration: 60
+  # Time between rounds (seconds)
+  round-intermission: 5
+
+  # Board dimensions (rows x cols)
+  board-rows: 4
+  board-cols: 7
+  # Bench size
+  bench-size: 9
+
+  # Starting stats
+  starting-health: 100
+  starting-gold: 2
+
+  # Gold economy
+  gold-per-round: 5
+  gold-interest-cap: 5          # max gold earned from interest
+  gold-interest-threshold: 10   # every 10 gold = +1 interest
+
+  # XP per round (to increase board size limit)
+  xp-per-round: 2
+  # Cost to buy XP manually
+  xp-buy-cost: 4
+  xp-buy-amount: 4
+
+  # Reroll cost
+  reroll-cost: 2
+
+  # Combat loss damage formula: base + (surviving enemy units) + (sum of star levels)
+  loss-damage-base: 2
+
+  # Shared arena world (where game boards are created)
+  arena-world: "astral_arena"
+  # Distance between player platforms (blocks)
+  platform-spacing: 64
+
+shop:
+  # Shop slot count
+  slots: 5
+  # Pool sizes per tier (total copies of each champion)
+  pool-sizes:
+    1: 29
+    2: 22
+    3: 18
+    4: 12
+    5: 10
+  # Odds by player level [level 1-9] for each tier [1-5]
+  odds:
+    1:  [100,  0,  0,  0,  0]
+    2:  [ 75, 25,  0,  0,  0]
+    3:  [ 55, 30, 15,  0,  0]
+    4:  [ 35, 35, 25,  5,  0]
+    5:  [ 22, 35, 30, 10,  3]
+    6:  [ 15, 25, 35, 20,  5]
+    7:  [ 10, 20, 30, 30, 10]
+    8:  [  6, 15, 20, 35, 24]
+    9:  [  4, 10, 15, 30, 41]
+
+ui:
+  # Colors (MiniMessage format)
+  color-primary: "<gradient:#9b59b6:#3498db>"
+  color-gold: "<gold>"
+  color-health: "<red>"
+  color-mana: "<aqua>"
+  color-trait-active: "<green>"
+  color-trait-inactive: "<gray>"
+
+  # HUD update interval (ticks)
+  hud-update-interval: 10
+
+  # Show combat damage numbers as floating text
+  show-damage-numbers: true
+
+  # Particle effects scale
+  particle-scale: 1.0
+
+modelengine:
+  # Play animations through ModelEngine (requires ModelEngine plugin)
+  enabled: true
+  # Default animation names used for all champions
+  animations:
+    idle: "idle"
+    walk: "walk"
+    attack: "attack"
+    skill: "skill"
+    death: "death"
+    spawn: "spawn"

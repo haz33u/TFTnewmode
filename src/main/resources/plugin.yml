@@ -1,0 +1,36 @@
+name: AstralClash
+version: ${project.version}
+main: dev.astralclash.AstralClash
+api-version: "1.21"
+description: "TFT-style auto-chess in Minecraft featuring Honkai: Star Rail characters"
+authors: [ AstralClash Team ]
+website: https://github.com/haz33u/TFTnewmode
+
+depend:
+  - packetevents
+  - ModelEngine
+
+softdepend: []
+
+commands:
+  astral:
+    description: "Main AstralClash player command"
+    usage: "/astral <join|leave|shop|board|stats>"
+    aliases: [ ac, aclash ]
+    permission: astralclash.play
+  astraladmin:
+    description: "AstralClash admin command"
+    usage: "/astraladmin <reload|start|stop|setgold|spawnchamp>"
+    aliases: [ aca, acladmin ]
+    permission: astralclash.admin
+
+permissions:
+  astralclash.play:
+    description: "Allows a player to participate in AstralClash"
+    default: true
+  astralclash.admin:
+    description: "Allows access to AstralClash admin commands"
+    default: op
+  astralclash.bypass:
+    description: "Bypass AstralClash game restrictions"
+    default: op
