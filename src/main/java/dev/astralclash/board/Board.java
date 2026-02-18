@@ -7,6 +7,7 @@ import org.bukkit.World;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Represents a single player's 4×7 battle board in the arena.
@@ -29,7 +30,7 @@ public class Board {
 
     private final UUID ownerId;
 
-    public Board(java.util.UUID ownerId, int rows, int cols,
+    public Board(UUID ownerId, int rows, int cols,
                  Location origin, World world) {
         this.ownerId = ownerId;
         this.rows    = rows;
@@ -145,5 +146,5 @@ public class Board {
 
     public int  getRows()    { return rows; }
     public int  getCols()    { return cols; }
-    public java.util.UUID getOwnerId() { return ownerId; }
+    public UUID getOwnerId() { return ownerId; }
 }
