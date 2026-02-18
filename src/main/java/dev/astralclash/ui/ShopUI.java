@@ -30,7 +30,9 @@ import java.util.List;
  */
 public class ShopUI {
 
-    static final String SHOP_TITLE = "✦ AstralClash Shop ✦";
+    static final String    SHOP_TITLE           = "✦ AstralClash Shop ✦";
+    static final Component SHOP_TITLE_COMPONENT  =
+            Component.text(SHOP_TITLE, NamedTextColor.LIGHT_PURPLE);
 
     private static final int SLOT_CHAMPION_START = 0; // slots 0-4 = champions
     private static final int SLOT_REROLL        = 5;
@@ -45,9 +47,7 @@ public class ShopUI {
     // ── Open ─────────────────────────────────────────────────────────────────
 
     public void openShop(ArenaPlayer ap) {
-        Inventory inv = Bukkit.createInventory(null, 9,
-                Component.text(SHOP_TITLE, NamedTextColor.LIGHT_PURPLE));
-
+        Inventory inv = Bukkit.createInventory(null, 9, SHOP_TITLE_COMPONENT);
         populateShop(inv, ap);
         ap.getPlayer().openInventory(inv);
     }

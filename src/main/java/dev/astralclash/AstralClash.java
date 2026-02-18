@@ -10,6 +10,7 @@ import dev.astralclash.economy.EconomyManager;
 import dev.astralclash.game.GameManager;
 import dev.astralclash.listeners.GameListener;
 import dev.astralclash.listeners.PlayerListener;
+import dev.astralclash.model.ModelEngineService;
 import dev.astralclash.player.PlayerManager;
 import dev.astralclash.shop.ShopManager;
 import dev.astralclash.ui.UIManager;
@@ -20,14 +21,15 @@ public final class AstralClash extends JavaPlugin {
 
     private static AstralClash instance;
 
-    private ConfigManager configManager;
-    private DatabaseManager databaseManager;
-    private PlayerManager playerManager;
-    private ChampionManager championManager;
-    private EconomyManager economyManager;
-    private ShopManager shopManager;
-    private GameManager gameManager;
-    private UIManager uiManager;
+    private ConfigManager      configManager;
+    private DatabaseManager    databaseManager;
+    private PlayerManager      playerManager;
+    private ChampionManager    championManager;
+    private EconomyManager     economyManager;
+    private ShopManager        shopManager;
+    private GameManager        gameManager;
+    private UIManager          uiManager;
+    private ModelEngineService modelEngineService;
 
     // ── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -52,12 +54,13 @@ public final class AstralClash extends JavaPlugin {
         this.databaseManager.initialize();
 
         // Game systems
-        this.championManager = new ChampionManager(this);
-        this.playerManager   = new PlayerManager(this);
-        this.economyManager  = new EconomyManager(this);
-        this.shopManager     = new ShopManager(this);
-        this.gameManager     = new GameManager(this);
-        this.uiManager       = new UIManager(this);
+        this.championManager     = new ChampionManager(this);
+        this.playerManager       = new PlayerManager(this);
+        this.economyManager      = new EconomyManager(this);
+        this.shopManager         = new ShopManager(this);
+        this.gameManager         = new GameManager(this);
+        this.uiManager           = new UIManager(this);
+        this.modelEngineService  = new ModelEngineService(this);
 
         // Commands
         var arenaCmd = getCommand("astral");
@@ -78,9 +81,10 @@ public final class AstralClash extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (gameManager != null)    gameManager.shutdown();
-        if (uiManager != null)      uiManager.shutdown();
-        if (databaseManager != null) databaseManager.close();
+        if (modelEngineService != null) modelEngineService.despawnAll();
+        if (gameManager != null)        gameManager.shutdown();
+        if (uiManager != null)          uiManager.shutdown();
+        if (databaseManager != null)    databaseManager.close();
         PacketEvents.getAPI().terminate();
         getLogger().info("AstralClash disabled.");
     }
@@ -101,13 +105,14 @@ public final class AstralClash extends JavaPlugin {
 
     // ── Accessors ────────────────────────────────────────────────────────────
 
-    public static AstralClash getInstance()         { return instance; }
-    public ConfigManager    getConfigManager()      { return configManager; }
-    public DatabaseManager  getDatabaseManager()    { return databaseManager; }
-    public PlayerManager    getPlayerManager()      { return playerManager; }
-    public ChampionManager  getChampionManager()    { return championManager; }
-    public EconomyManager   getEconomyManager()     { return economyManager; }
-    public ShopManager      getShopManager()        { return shopManager; }
-    public GameManager      getGameManager()        { return gameManager; }
-    public UIManager        getUIManager()          { return uiManager; }
+    public static AstralClash    getInstance()            { return instance; }
+    public ConfigManager         getConfigManager()       { return configManager; }
+    public DatabaseManager       getDatabaseManager()     { return databaseManager; }
+    public PlayerManager         getPlayerManager()       { return playerManager; }
+    public ChampionManager       getChampionManager()     { return championManager; }
+    public EconomyManager        getEconomyManager()      { return economyManager; }
+    public ShopManager           getShopManager()         { return shopManager; }
+    public GameManager           getGameManager()         { return gameManager; }
+    public UIManager             getUIManager()           { return uiManager; }
+    public ModelEngineService    getModelEngineService()  { return modelEngineService; }
 }

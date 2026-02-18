@@ -38,6 +38,7 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
             case "join"  -> cmdJoin(player);
             case "leave" -> cmdLeave(player);
             case "shop"  -> cmdShop(player);
+            case "bench" -> cmdBench(player);
             case "stats" -> cmdStats(player);
             case "sell"  -> cmdSell(player, args);
             case "help"  -> { sendHelp(player); yield true; }
@@ -75,6 +76,16 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         plugin.getUIManager().openShop(ap);
+        return true;
+    }
+
+    private boolean cmdBench(Player player) {
+        ArenaPlayer ap = plugin.getPlayerManager().getArenaPlayer(player);
+        if (ap == null) {
+            player.sendMessage(Component.text("You are not in a game!", NamedTextColor.RED));
+            return true;
+        }
+        plugin.getUIManager().openBench(ap);
         return true;
     }
 
@@ -132,17 +143,18 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
 
     private void sendHelp(Player player) {
         player.sendMessage(Component.text("═══ AstralClash Commands ═══", NamedTextColor.LIGHT_PURPLE));
-        player.sendMessage(Component.text("/astral join  — join the lobby", NamedTextColor.YELLOW));
-        player.sendMessage(Component.text("/astral leave — leave the game", NamedTextColor.YELLOW));
-        player.sendMessage(Component.text("/astral shop  — open the shop", NamedTextColor.YELLOW));
+        player.sendMessage(Component.text("/astral join        — join the lobby", NamedTextColor.YELLOW));
+        player.sendMessage(Component.text("/astral leave       — leave the game", NamedTextColor.YELLOW));
+        player.sendMessage(Component.text("/astral shop        — open the shop", NamedTextColor.YELLOW));
+        player.sendMessage(Component.text("/astral bench       — open your bench", NamedTextColor.YELLOW));
         player.sendMessage(Component.text("/astral sell <slot> — sell a bench champion", NamedTextColor.YELLOW));
-        player.sendMessage(Component.text("/astral stats — view your stats", NamedTextColor.YELLOW));
+        player.sendMessage(Component.text("/astral stats       — view your stats", NamedTextColor.YELLOW));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command cmd, String label, String[] args) {
         if (args.length == 1) {
-            return List.of("join", "leave", "shop", "sell", "stats", "help");
+            return List.of("join", "leave", "shop", "bench", "sell", "stats", "help");
         }
         return List.of();
     }

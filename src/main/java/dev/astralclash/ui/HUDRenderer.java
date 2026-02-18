@@ -8,11 +8,24 @@ import dev.astralclash.game.GamePhase;
 import dev.astralclash.player.ArenaPlayer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextColor;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.entity.Display;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
+import org.bukkit.scoreboard.Criteria;
+import org.bukkit.scoreboard.DisplaySlot;
+import org.bukkit.scoreboard.Objective;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.ScoreboardManager;
+import org.bukkit.scoreboard.Team;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Renders the player HUD using:
@@ -20,12 +33,19 @@ import java.util.Map;
  *   <li>Action bar — quick status (gold, HP, round, level)</li>
  *   <li>Sidebar scoreboard — traits, unit count, standings</li>
  *   <li>Boss bar — phase timer (managed by {@link UIManager})</li>
+ *   <li>TextDisplay entities — floating damage numbers</li>
  * </ul>
  */
 public class HUDRenderer {
 
+    /** Maximum sidebar lines (§0–§f gives us 16 unique "player" entries). */
+    private static final int MAX_LINES = 16;
+
     private final AstralClash  plugin;
     private final TraitManager traitManager = new TraitManager();
+
+    /** Per-player scoreboard instances (rebuilt each HUD cycle). */
+    private final Map<UUID, Scoreboard> playerScoreboards = new HashMap<>();
 
     public HUDRenderer(AstralClash plugin) {
         this.plugin = plugin;
@@ -47,13 +67,13 @@ public class HUDRenderer {
             default       -> "§7Waiting";
         };
 
-        int deployed = ap.getDeployedCount();
+        int deployed  = ap.getDeployedCount();
         int maxDeploy = ap.getBoardSizeLimit();
 
         Component bar = Component.text(
-                "§6♦ " + ap.getGold() + " gold  " +
-                "§c♥ " + ap.getHealth() + " HP  " +
-                "§a⬡ " + deployed + "/" + maxDeploy + " units  " +
+                "§6♦ " + ap.getGold() + "g  " +
+                "§c♥ " + ap.getHealth() + "HP  " +
+                "§a⬡ " + deployed + "/" + maxDeploy + "  " +
                 "§eLv" + ap.getLevel() + "  " +
                 phaseStr);
 
@@ -64,63 +84,143 @@ public class HUDRenderer {
 
     /**
      * Updates the player's sidebar scoreboard with trait info and standings.
-     * Uses vanilla scoreboard — PacketEvents can be used for fancier display.
+     * Uses the Bukkit Scoreboard + Team API for clean, flash-free rendering.
      */
     public void renderScoreboard(ArenaPlayer ap, List<ArenaPlayer> allPlayers) {
         Player player = ap.getPlayer();
+        if (!player.isOnline()) return;
 
-        // Build trait summary lines
+        ScoreboardManager manager = Bukkit.getScoreboardManager();
+        Scoreboard sb = playerScoreboards.computeIfAbsent(ap.getUuid(),
+                k -> manager.getNewScoreboard());
+
+        // ── Build content lines (top → bottom) ────────────────────────────────
+        List<String> lines = new ArrayList<>();
+
+        int roundNum = plugin.getGameManager().getRoundManager() != null
+                ? plugin.getGameManager().getRoundManager().getRoundNumber() : 0;
+        GamePhase phase = plugin.getGameManager().getPhase();
+
+        lines.add("§7Round §f" + roundNum + " §8| " + phaseIcon(phase));
+        lines.add("§7Alive: §f" + allPlayers.size() + " §7players");
+        lines.add(""); // blank
+
+        // Active traits
         List<ChampionInstance> deployed = ap.getBoard() != null
                 ? ap.getBoard().getDeployedChampions() : List.of();
         Map<Trait, Integer> traitCounts = traitManager.countTraits(deployed);
 
-        // Use sendMessage for a simple MVP — a real impl would use ScoreboardManager
-        StringBuilder sb = new StringBuilder();
-        sb.append("§5§l✦ AstralClash ✦\n");
-        sb.append("§7Round: §f").append(
-                plugin.getGameManager().getRoundManager() != null
-                        ? plugin.getGameManager().getRoundManager().getRoundNumber() : 0).append("\n");
-        sb.append("§7Players alive: §f").append(allPlayers.size()).append("\n");
-        sb.append("\n§7Active Traits:\n");
-
-        for (Map.Entry<Trait, Integer> e : traitCounts.entrySet()) {
-            Trait t = e.getKey();
-            int count = e.getValue();
-            int tier = t.getActiveTier(count);
-            String color = tier > 0 ? "§a" : "§8";
-            int next = tier < t.getThresholds().length ? t.getThresholds()[tier] : -1;
-            String nextStr = next > 0 ? "§7(" + count + "/" + next + ")" : "§a(MAX)";
-            sb.append(color).append(t.getDisplayName()).append(" ").append(nextStr).append("\n");
+        if (traitCounts.isEmpty()) {
+            lines.add("§8No active traits");
+        } else {
+            for (Map.Entry<Trait, Integer> e : traitCounts.entrySet()) {
+                Trait t = e.getKey();
+                int count = e.getValue();
+                int tier  = t.getActiveTier(count);
+                int next  = tier < t.getThresholds().length ? t.getThresholds()[tier] : -1;
+                String prog = next > 0 ? " §8(" + count + "/" + next + ")" : " §a★";
+                String col  = tier > 0 ? "§a" : "§8";
+                lines.add(col + t.getDisplayName() + prog);
+                if (lines.size() >= MAX_LINES - 5) break; // leave room for HP standings
+            }
         }
 
-        // Health standings
-        sb.append("\n§7HP Standings:\n");
+        lines.add(""); // blank
+
+        // HP standings (sorted high → low)
+        lines.add("§7HP Standings:");
         allPlayers.stream()
                 .sorted((a, b) -> Integer.compare(b.getHealth(), a.getHealth()))
-                .forEach(other -> sb.append(
-                        other.getUuid().equals(ap.getUuid()) ? "§e" : "§7")
-                        .append(other.getPlayer().getName())
-                        .append(" §c").append(other.getHealth()).append("HP\n"));
+                .limit(5)
+                .forEach(other -> {
+                    boolean isSelf = other.getUuid().equals(ap.getUuid());
+                    lines.add((isSelf ? "§e▶ " : "§7  ") +
+                               other.getPlayer().getName() + " §c" + other.getHealth());
+                });
 
-        // We log to player chat in MVP; real impl would use scoreboard sidebar
-        // player.sendMessage(sb.toString());
-        // ^ Commented out to avoid chat spam; action bar + bossbar is enough for MVP
+        // ── Apply to scoreboard ───────────────────────────────────────────────
+        // Re-register objective fresh each render (clears stale scores)
+        Objective old = sb.getObjective("ac_hud");
+        if (old != null) old.unregister();
+
+        Objective obj = sb.registerNewObjective("ac_hud", Criteria.DUMMY,
+                Component.text("✦ AstralClash ✦", NamedTextColor.LIGHT_PURPLE));
+        obj.setDisplaySlot(DisplaySlot.SIDEBAR);
+
+        // Ensure teams exist (one per line slot, re-used across renders)
+        for (int i = 0; i < MAX_LINES; i++) {
+            String teamName = "ac_l" + i;
+            if (sb.getTeam(teamName) == null) {
+                Team t = sb.registerNewTeam(teamName);
+                // Each team has one unique entry: a color-code string "§0" … "§f"
+                t.addEntry("§" + Integer.toHexString(i));
+            }
+        }
+
+        // Fill lines top-to-bottom (higher score = higher position)
+        int totalLines = lines.size();
+        for (int i = 0; i < totalLines && i < MAX_LINES; i++) {
+            String entry   = "§" + Integer.toHexString(i);
+            String content = lines.get(i);
+            sb.getTeam("ac_l" + i).prefix(Component.text(content));
+            obj.getScore(entry).setScore(totalLines - i);
+        }
+
+        player.setScoreboard(sb);
+    }
+
+    /** Clears the AstralClash scoreboard and restores the server default. */
+    public void clearScoreboard(UUID uuid) {
+        playerScoreboards.remove(uuid);
+        Player p = Bukkit.getPlayer(uuid);
+        if (p != null && p.isOnline()) {
+            p.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+        }
+    }
+
+    public void clearAllScoreboards() {
+        for (UUID uuid : playerScoreboards.keySet()) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null && p.isOnline()) {
+                p.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+            }
+        }
+        playerScoreboards.clear();
     }
 
     // ── Floating damage numbers ───────────────────────────────────────────────
 
     /**
-     * Spawns a floating text entity showing damage at a world location.
-     * Uses PacketEvents to send a fake ArmorStand with a custom name.
-     * For MVP we'll trigger a particle burst instead (simpler, no armorstand cleanup).
+     * Spawns a TextDisplay entity showing the damage number above the hit location.
+     * Must be called from the main thread (or scheduled to it).
      */
-    public void showDamageNumber(org.bukkit.Location loc, double damage, boolean isCrit) {
+    public void showDamageNumber(Location loc, double damage, boolean isCrit) {
         if (!plugin.getConfigManager().isShowDamageNumbers()) return;
-        // Particle flash to indicate the hit (particle system as stand-in for floating text)
-        var particle = isCrit
-                ? org.bukkit.Particle.CRIT_MAGIC
-                : org.bukkit.Particle.DAMAGE_INDICATOR;
-        loc.getWorld().spawnParticle(particle, loc.add(0, 1.5, 0),
-                isCrit ? 12 : 6, 0.2, 0.2, 0.2, 0.05);
+        if (loc == null || loc.getWorld() == null) return;
+
+        Location displayLoc = loc.clone().add(0, 2.2, 0);
+
+        TextDisplay td = (TextDisplay) loc.getWorld().spawnEntity(displayLoc, EntityType.TEXT_DISPLAY);
+        String prefix = isCrit ? "✦ " : "";
+        NamedTextColor color = isCrit ? NamedTextColor.YELLOW : NamedTextColor.WHITE;
+        td.text(Component.text(prefix + (int) damage, color));
+        td.setBillboard(Display.Billboard.CENTER);
+        td.setDefaultBackground(false);
+        td.setShadowed(true);
+        td.setViewRange(16f);
+
+        // Remove after 1.5 seconds
+        Bukkit.getScheduler().runTaskLater(plugin, td::remove, 30L);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private String phaseIcon(GamePhase phase) {
+        return switch (phase) {
+            case PLANNING -> "§bPlanning";
+            case COMBAT   -> "§c⚔ Combat";
+            case RESULTS  -> "§eResults";
+            default       -> "§7Waiting";
+        };
     }
 }

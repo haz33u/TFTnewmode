@@ -40,12 +40,10 @@ public class Bronya {
                     .max(Comparator.comparingDouble(ChampionInstance::getAttackDamage))
                     .orElse(caster); // buff self if alone
 
-            // Apply ATK buff
-            double buffedAtk = target.getAttackDamage() * (1 + ATK_BUFF_PERCENT);
-            target.setAttackDamage(buffedAtk);
-            // Store the buff so CombatEngine can revert it (simplified: use status flag)
-            // In a full implementation you'd store the original and revert after BUFF_DURATION_TICKS.
-            // For now we mark it with a generic BUFF status.
+            // Calculate flat bonus and store it for revert when HARMONY_BUFF expires
+            double buffAmount = target.getAttackDamage() * ATK_BUFF_PERCENT;
+            target.setHarmonyBuffBonus(target.getHarmonyBuffBonus() + buffAmount);
+            target.setAttackDamage(target.getAttackDamage() + buffAmount);
             target.applyStatus(dev.astralclash.combat.StatusEffect.HARMONY_BUFF, BUFF_DURATION_TICKS);
         }
     }

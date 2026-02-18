@@ -1,7 +1,10 @@
 package dev.astralclash.listeners;
 
 import dev.astralclash.AstralClash;
+import dev.astralclash.champion.ChampionInstance;
+import dev.astralclash.game.GamePhase;
 import dev.astralclash.player.ArenaPlayer;
+import dev.astralclash.ui.BenchUI;
 import dev.astralclash.ui.ShopUI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -9,13 +12,15 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+import java.util.List;
+
 /**
- * Handles player join/quit and shop inventory clicks.
+ * Handles player join/quit and all GUI inventory clicks (shop + bench).
  */
 public class PlayerListener implements Listener {
 
@@ -30,13 +35,16 @@ public class PlayerListener implements Listener {
     @EventHandler(priority = EventPriority.NORMAL)
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        player.sendMessage(Component.text("Welcome to AstralClash! Type /astral join to play.",
+        player.sendMessage(Component.text(
+                "Welcome to AstralClash! Type /astral join to play.",
                 NamedTextColor.LIGHT_PURPLE));
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        // Clear UI state (scoreboard, boss bar)
+        plugin.getUIManager().onPlayerLeave(player.getUniqueId());
         // Remove from lobby if waiting
         plugin.getGameManager().leaveLobby(player);
         // Save and remove from active game
@@ -49,23 +57,29 @@ public class PlayerListener implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        var title = event.getView().title();
-        // Check if this is the AstralClash shop by comparing title text
-        var shopTitle = Component.text(ShopUI.SHOP_TITLE);
-        if (!event.getView().title().equals(shopTitle)
-                && !event.getView().getTitle().equals(ShopUI.SHOP_TITLE)) return;
+        net.kyori.adventure.text.Component viewTitle = event.getView().title();
 
-        event.setCancelled(true); // always cancel shop clicks
+        if (viewTitle.equals(ShopUI.SHOP_TITLE_COMPONENT)) {
+            handleShopClick(event, player);
+        } else if (viewTitle.equals(BenchUI.BENCH_TITLE_COMPONENT)) {
+            handleBenchClick(event, player);
+        }
+    }
+
+    // ── Shop click handler ────────────────────────────────────────────────────
+
+    private void handleShopClick(InventoryClickEvent event, Player player) {
+        event.setCancelled(true);
 
         ArenaPlayer ap = plugin.getPlayerManager().getArenaPlayer(player);
         if (ap == null) return;
 
         int slot = event.getRawSlot();
 
-        // Champion purchase slots (0-4)
+        // Champion purchase slots 0-4
         if (slot >= ShopUI.getChampionSlotStart() && slot < ShopUI.getChampionSlotStart() + 5) {
             int shopSlot = slot - ShopUI.getChampionSlotStart();
-            var ci = plugin.getShopManager().buyChampion(ap, shopSlot);
+            ChampionInstance ci = plugin.getShopManager().buyChampion(ap, shopSlot);
             if (ci != null) {
                 player.sendMessage(Component.text(
                         "Purchased " + ci.getChampion().getDisplayName() + "! It's on your bench.",
@@ -78,10 +92,8 @@ public class PlayerListener implements Listener {
             return;
         }
 
-        // Reroll
         if (slot == ShopUI.getRerollSlot()) {
-            boolean rerolled = plugin.getShopManager().reroll(ap);
-            if (!rerolled) {
+            if (!plugin.getShopManager().reroll(ap)) {
                 player.sendMessage(Component.text("Not enough gold to reroll!", NamedTextColor.RED));
             } else {
                 plugin.getUIManager().refreshShop(ap);
@@ -89,7 +101,6 @@ public class PlayerListener implements Listener {
             return;
         }
 
-        // Lock / Unlock
         if (slot == ShopUI.getLockSlot()) {
             ap.setShopLocked(!ap.isShopLocked());
             player.sendMessage(Component.text(
@@ -98,10 +109,8 @@ public class PlayerListener implements Listener {
             return;
         }
 
-        // Buy XP
         if (slot == ShopUI.getBuyXpSlot()) {
-            boolean bought = plugin.getEconomyManager().buyXp(ap);
-            if (bought) {
+            if (plugin.getEconomyManager().buyXp(ap)) {
                 player.sendMessage(Component.text(
                         "Bought XP! Now Lv" + ap.getLevel(), NamedTextColor.AQUA));
                 plugin.getUIManager().refreshShop(ap);
@@ -111,9 +120,61 @@ public class PlayerListener implements Listener {
             return;
         }
 
-        // Close
         if (slot == ShopUI.getCloseSlot()) {
             player.closeInventory();
+        }
+    }
+
+    // ── Bench click handler ───────────────────────────────────────────────────
+
+    private void handleBenchClick(InventoryClickEvent event, Player player) {
+        event.setCancelled(true);
+
+        ArenaPlayer ap = plugin.getPlayerManager().getArenaPlayer(player);
+        if (ap == null) return;
+
+        int slot = event.getRawSlot();
+        List<ChampionInstance> bench = ap.getBench();
+
+        if (slot < 0 || slot >= bench.size()) return;
+        ChampionInstance ci = bench.get(slot);
+
+        if (event.getClick() == ClickType.RIGHT) {
+            // Right-click = sell
+            int gold = plugin.getShopManager().sell(ap, ci);
+            player.sendMessage(Component.text(
+                    "Sold " + ci.getChampion().getDisplayName() + " for " + gold + "g.",
+                    NamedTextColor.YELLOW));
+            plugin.getUIManager().refreshBench(ap);
+
+        } else if (event.getClick() == ClickType.LEFT) {
+            // Left-click = deploy to board (only during PLANNING)
+            if (plugin.getGameManager().getPhase() != GamePhase.PLANNING) {
+                player.sendMessage(Component.text(
+                        "You can only deploy during the Planning phase!", NamedTextColor.RED));
+                return;
+            }
+            if (ap.getDeployedCount() >= ap.getBoardSizeLimit()) {
+                player.sendMessage(Component.text(
+                        "Board is full! Sell or upgrade a unit first.", NamedTextColor.RED));
+                return;
+            }
+            if (ap.getBoard() == null) {
+                player.sendMessage(Component.text("Your board is not set up yet.", NamedTextColor.RED));
+                return;
+            }
+            // Place in first available board cell
+            boolean placed = ap.getBoard().placeOnFirstEmpty(ci);
+            if (placed) {
+                ap.removeFromBench(ci);
+                player.sendMessage(Component.text(
+                        "Deployed " + ci.getChampion().getDisplayName() + " to your board!",
+                        NamedTextColor.GREEN));
+                plugin.getUIManager().refreshBench(ap);
+            } else {
+                player.sendMessage(Component.text(
+                        "No empty cells on the board!", NamedTextColor.RED));
+            }
         }
     }
 }

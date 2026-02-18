@@ -4,6 +4,7 @@ import dev.astralclash.board.BoardCell;
 import dev.astralclash.combat.StatusEffect;
 
 import java.util.*;
+import java.util.EnumSet;
 
 /**
  * A live instance of a {@link Champion} on the board or bench.
@@ -34,9 +35,12 @@ public class ChampionInstance {
     private final Map<StatusEffect, Integer> statusEffects = new EnumMap<>(StatusEffect.class);
 
     // Trait bonuses applied to this instance (set by CombatEngine)
-    private double bonusAtkPercent     = 0;
+    private double bonusAtkPercent      = 0;
     private double bonusAtkSpeedPercent = 0;
-    private double omnivampPercent     = 0;
+    private double omnivampPercent      = 0;
+
+    // Temporary ATK bonus from Bronya's ability — tracked for revert on expiry
+    private double harmonyBuffBonus     = 0;
 
     // Owner identifier (which ArenaPlayer this belongs to)
     private UUID ownerId;
@@ -159,12 +163,26 @@ public class ChampionInstance {
         return statusEffects.containsKey(effect);
     }
 
-    /** Tick down status durations. Called each combat tick. */
-    public void tickStatuses() {
+    /** Removes a specific status effect immediately (used for cleanse effects). */
+    public void removeStatus(StatusEffect effect) {
+        statusEffects.remove(effect);
+    }
+
+    /**
+     * Tick down status durations. Called each combat tick.
+     * Returns the set of effects whose duration just expired this tick.
+     */
+    public Set<StatusEffect> tickStatuses() {
+        Set<StatusEffect> expired = EnumSet.noneOf(StatusEffect.class);
         statusEffects.entrySet().removeIf(e -> {
             e.setValue(e.getValue() - 1);
-            return e.getValue() <= 0;
+            if (e.getValue() <= 0) {
+                expired.add(e.getKey());
+                return true;
+            }
+            return false;
         });
+        return expired;
     }
 
     // ── Getters / Setters ────────────────────────────────────────────────────
@@ -208,6 +226,9 @@ public class ChampionInstance {
     public void      setBonusAtkSpeedPercent(double v)    { bonusAtkSpeedPercent = v; }
     public void      setOmnivampPercent(double v)         { omnivampPercent = v; }
     public double    getOmnivampPercent()                 { return omnivampPercent; }
+
+    public double    getHarmonyBuffBonus()                { return harmonyBuffBonus; }
+    public void      setHarmonyBuffBonus(double v)        { harmonyBuffBonus = v; }
 
     public Map<StatusEffect, Integer> getStatusEffects()  { return Collections.unmodifiableMap(statusEffects); }
 

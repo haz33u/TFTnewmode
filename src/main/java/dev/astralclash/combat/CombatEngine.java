@@ -2,15 +2,11 @@ package dev.astralclash.combat;
 
 import dev.astralclash.AstralClash;
 import dev.astralclash.board.Board;
-import dev.astralclash.board.BoardCell;
 import dev.astralclash.champion.ChampionInstance;
 import dev.astralclash.champion.trait.Trait;
 import dev.astralclash.champion.trait.TraitBonus;
 import dev.astralclash.champion.trait.TraitManager;
 import dev.astralclash.player.ArenaPlayer;
-import org.bukkit.Location;
-import org.bukkit.Particle;
-import org.bukkit.Sound;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -21,10 +17,10 @@ import java.util.stream.Collectors;
  * <p>The engine runs a tick-based simulation (20 ticks/second).
  * Each tick:
  * <ol>
- *   <li>Tick status effect durations.</li>
+ *   <li>Tick status effect durations; handle expiry side-effects (e.g. Bronya buff revert).</li>
  *   <li>Process DoT damage (BURN, SHOCK, POISON every 20 ticks).</li>
  *   <li>Each alive, non-stunned unit finds its nearest enemy.</li>
- *   <li>If in attack range, the unit attacks; otherwise it moves toward the target.</li>
+ *   <li>If in attack range, the unit attacks; otherwise waits (visual movement only).</li>
  *   <li>When a unit's mana fills, it casts its ability.</li>
  *   <li>Dead units are removed.</li>
  *   <li>If one side has no units left → combat ends.</li>
@@ -32,18 +28,18 @@ import java.util.stream.Collectors;
  */
 public class CombatEngine {
 
-    /** Ticks per attack cooldown slot (20 ticks = 1 second). */
-    private static final int    TICKS_PER_SECOND   = 20;
+    /** Ticks per second (20 ticks = 1 second). */
+    private static final int    TICKS_PER_SECOND = 20;
     /** Mana gained per basic attack dealt. */
-    private static final double MANA_PER_ATTACK    = 10;
+    private static final double MANA_PER_ATTACK  = 10;
     /** Mana gained per 100 damage taken. */
-    private static final double MANA_PER_DAMAGE    = 8;
+    private static final double MANA_PER_DAMAGE  = 8;
     /** Maximum simulation ticks before declaring a draw. */
-    private static final int    MAX_TICKS          = 60 * TICKS_PER_SECOND; // 60 s
+    private static final int    MAX_TICKS        = 60 * TICKS_PER_SECOND; // 60 s
 
-    private final AstralClash   plugin;
-    private final TraitManager  traitManager = new TraitManager();
-    private final Random        rng          = new Random();
+    private final AstralClash  plugin;
+    private final TraitManager traitManager = new TraitManager();
+    private final Random       rng          = new Random();
 
     // Attack cooldown tracker: championInstance → remaining ticks until next attack
     private final Map<ChampionInstance, Integer> attackCooldowns = new IdentityHashMap<>();
@@ -105,11 +101,9 @@ public class CombatEngine {
     private void tickCombat(List<ChampionInstance> teamA,
                              List<ChampionInstance> teamB,
                              int tick) {
-        // Tick all status durations + DoT
         tickStatuses(teamA, tick);
         tickStatuses(teamB, tick);
 
-        // Process each unit
         processTeam(teamA, teamB);
         processTeam(teamB, teamA);
     }
@@ -117,7 +111,16 @@ public class CombatEngine {
     private void tickStatuses(List<ChampionInstance> team, int tick) {
         for (ChampionInstance ci : team) {
             if (!ci.isAlive()) continue;
-            ci.tickStatuses();
+
+            // Tick durations; get set of effects that expired this tick
+            Set<StatusEffect> expired = ci.tickStatuses();
+
+            // Bronya buff revert: when HARMONY_BUFF expires, subtract the stored bonus ATK
+            if (expired.contains(StatusEffect.HARMONY_BUFF) && ci.getHarmonyBuffBonus() > 0) {
+                double revertedAtk = Math.max(1.0, ci.getAttackDamage() - ci.getHarmonyBuffBonus());
+                ci.setAttackDamage(revertedAtk);
+                ci.setHarmonyBuffBonus(0);
+            }
 
             // DoT ticks every 20 ticks (1 second)
             int acc = dotAccumulator.merge(ci, 1, Integer::sum);
@@ -127,15 +130,6 @@ public class CombatEngine {
                 if (ci.hasStatus(StatusEffect.SHOCK))  ci.takeMagicDamage(80);
                 if (ci.hasStatus(StatusEffect.POISON)) ci.takeTrueDamage(50);
             }
-
-            // Luocha cleanse
-            if (ci.hasStatus(StatusEffect.LUOCHA_CLEANSE)) {
-                for (StatusEffect bad : new StatusEffect[]{
-                        StatusEffect.STUN, StatusEffect.BURN, StatusEffect.POISON, StatusEffect.SLOW}) {
-                    // We need a mutable view — use reflection-free workaround:
-                    // re-apply with 0 duration so it expires this tick (already ticked)
-                }
-            }
         }
     }
 
@@ -144,13 +138,13 @@ public class CombatEngine {
             if (!ci.isAlive()) continue;
             if (ci.hasStatus(StatusEffect.STUN) || ci.hasStatus(StatusEffect.FREEZE)) continue;
 
-            // Find nearest enemy
+            // Find nearest alive enemy
             Optional<ChampionInstance> targetOpt = findNearest(ci, enemies);
             if (targetOpt.isEmpty()) continue;
             ChampionInstance target = targetOpt.get();
 
             int range = ci.getAttackRange();
-            int dist  = ci.getCell() != null && target.getCell() != null
+            int dist  = (ci.getCell() != null && target.getCell() != null)
                     ? ci.getCell().distanceTo(target.getCell()) : 1;
 
             // Cooldown countdown
@@ -161,60 +155,69 @@ public class CombatEngine {
             }
 
             if (dist <= range) {
-                // Basic attack
-                performAttack(ci, target, enemies);
+                // Pass the full allied team so abilities can target/buff correct units
+                performAttack(ci, target, team, enemies);
             }
-            // Movement is visualised server-side but not simulated on the grid
-            // in this tick-based model (units are treated as always in range once
-            // the fight starts — full path-finding is a visual-only feature).
+            // Movement is visual-only; units are treated as always in range once
+            // the fight starts — full path-finding is a future visual feature.
         }
     }
 
     // ── Attack logic ─────────────────────────────────────────────────────────
 
     private void performAttack(ChampionInstance attacker, ChampionInstance target,
-                                List<ChampionInstance> allEnemies) {
+                                List<ChampionInstance> allies, List<ChampionInstance> allEnemies) {
         double rawDmg = attacker.getAttackDamage();
 
-        // PHYSICAL trait: every Nth attack deals true damage
+        // Track basic attack count (PHYSICAL trait every-Nth-attack mechanic)
         attacker.incrementAttackCounter();
 
-        // Crit (5% base, modified by traits/abilities)
+        // Crit check (5% base)
         boolean crit = rng.nextDouble() < 0.05;
         if (crit) rawDmg *= 1.75;
 
-        double dealt = target.takeDamage(rawDmg);
+        // ── Fu Xuan damage redirect ───────────────────────────────────────────
+        // If the target has the FU_XUAN_MATRIX marker, 40% of raw damage is
+        // redirected to Fu Xuan (FU_XUAN_TARGET) on the same team.
+        double dmgToTarget = rawDmg;
+        if (target.hasStatus(StatusEffect.FU_XUAN_MATRIX)) {
+            double redirected = rawDmg * 0.40;
+            dmgToTarget = rawDmg * 0.60;
+            allEnemies.stream()
+                    .filter(e -> e.isAlive() && e != target
+                              && e.hasStatus(StatusEffect.FU_XUAN_TARGET))
+                    .findFirst()
+                    .ifPresent(fx -> fx.takeTrueDamage(redirected));
+        }
+
+        double dealt = target.takeDamage(dmgToTarget);
 
         // Omnivamp (Destruction trait)
         if (attacker.getOmnivampPercent() > 0) {
             attacker.heal(dealt * attacker.getOmnivampPercent());
         }
 
-        // Mana gain
+        // Mana gain for attacker and target
         boolean abilityReady = attacker.addMana(MANA_PER_ATTACK);
         target.addMana(dealt / 100.0 * MANA_PER_DAMAGE);
 
-        // Fire ability if mana is full
+        // Fire ability when mana is full; pass the correct allied team
         if (abilityReady && attacker.getChampion().getAbility() != null) {
             attacker.consumeMana();
-            // We need the allied list — for simplicity pass the team via reverse lookup
-            // (in a real implementation pass both lists through a context)
-            attacker.getChampion().getAbility().execute(attacker, List.of(attacker), allEnemies);
+            attacker.getChampion().getAbility().execute(attacker, allies, allEnemies);
         }
 
-        // Reset attack cooldown based on attack speed (attacks/second → ticks between attacks)
-        double asAfterSlow = attacker.hasStatus(StatusEffect.SLOW) ?
-                attacker.getAttackSpeed() * 0.6 : attacker.getAttackSpeed();
-        int cooldownTicks = Math.max(1, (int)(TICKS_PER_SECOND / asAfterSlow));
+        // Reset attack cooldown based on attack speed (reduced if slowed)
+        double effectiveAS = attacker.hasStatus(StatusEffect.SLOW)
+                ? attacker.getAttackSpeed() * 0.6
+                : attacker.getAttackSpeed();
+        int cooldownTicks = Math.max(1, (int) (TICKS_PER_SECOND / effectiveAS));
         attackCooldowns.put(attacker, cooldownTicks);
 
-        // Gepard shield counter-freeze
+        // Gepard shield — counter-freeze on hit (25% proc chance)
         if (target.hasStatus(StatusEffect.GEPARD_SHIELD) && rng.nextInt(100) < 25) {
             attacker.applyStatus(StatusEffect.FREEZE, 20);
         }
-
-        // Visual effects (fire-and-forget, no await)
-        spawnHitParticle(target);
     }
 
     // ── Trait pre-combat bonuses ─────────────────────────────────────────────
@@ -223,19 +226,19 @@ public class CombatEngine {
         Map<Trait, TraitBonus> active = traitManager.computeActiveTraits(team);
 
         for (ChampionInstance ci : team) {
-            double atkMult  = 1.0;
-            double spdMult  = 1.0;
-            double omni     = 0.0;
-            double shield   = 0.0;
+            double atkMult = 1.0;
+            double spdMult = 1.0;
+            double omni    = 0.0;
+            double shield  = 0.0;
 
             for (Trait trait : ci.getChampion().getTraits()) {
                 TraitBonus bonus = active.get(trait);
                 if (bonus == null) continue;
 
-                atkMult  += bonus.getAtkBonusPercent();
-                spdMult  += bonus.getAtkSpeedBonusPercent();
-                omni     += bonus.getOmnivampPercent();
-                shield   += bonus.getShieldAmountFlat();
+                atkMult += bonus.getAtkBonusPercent();
+                spdMult += bonus.getAtkSpeedBonusPercent();
+                omni    += bonus.getOmnivampPercent();
+                shield  += bonus.getShieldAmountFlat();
             }
 
             ci.setAttackDamage(ci.getAttackDamage() * atkMult);
@@ -267,11 +270,5 @@ public class CombatEngine {
                 .mapToInt(ci -> ci.getStarLevel().getStars())
                 .sum();
         return base + survivors.size() + starSum;
-    }
-
-    private void spawnHitParticle(ChampionInstance target) {
-        if (target.getCell() == null) return;
-        Location loc = target.getCell().getWorldLocation().clone().add(0, 1, 0);
-        loc.getWorld().spawnParticle(Particle.CRIT, loc, 5, 0.2, 0.2, 0.2, 0.1);
     }
 }

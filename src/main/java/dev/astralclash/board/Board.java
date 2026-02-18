@@ -85,6 +85,23 @@ public class Board {
         return true;
     }
 
+    /**
+     * Places {@code ci} on the first empty cell (row-major order, back row first).
+     * Returns true if placed, false if the board is full.
+     */
+    public boolean placeOnFirstEmpty(ChampionInstance ci) {
+        for (int r = rows - 1; r >= 0; r--) {        // start from back row
+            for (int c = 0; c < cols; c++) {
+                if (!cells[r][c].isOccupied()) {
+                    cells[r][c].setOccupant(ci);
+                    ci.setCell(cells[r][c]);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     // ── Queries ──────────────────────────────────────────────────────────────
 
     public List<ChampionInstance> getDeployedChampions() {

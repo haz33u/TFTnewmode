@@ -16,26 +16,29 @@ import java.util.UUID;
  * Central UI orchestrator. Manages:
  * <ul>
  *   <li>Shop inventory GUI (open/close/refresh)</li>
+ *   <li>Bench inventory GUI (open/close/refresh)</li>
  *   <li>Action-bar HUD tick loop</li>
  *   <li>Boss bar phase timer</li>
- *   <li>Delegates scoreboard rendering to {@link HUDRenderer}</li>
+ *   <li>Scoreboard sidebar (via HUDRenderer)</li>
  * </ul>
  */
 public class UIManager {
 
     private final AstralClash plugin;
     private final ShopUI       shopUI;
+    private final BenchUI      benchUI;
     private final HUDRenderer  hudRenderer;
 
-    // Active boss bars per player
+    /** Active boss bars per player. */
     private final Map<UUID, BossBar> bossBars = new HashMap<>();
 
-    // Periodic HUD update task
+    /** Periodic HUD update task. */
     private BukkitTask hudTask;
 
     public UIManager(AstralClash plugin) {
         this.plugin      = plugin;
         this.shopUI      = new ShopUI(plugin);
+        this.benchUI     = new BenchUI(plugin);
         this.hudRenderer = new HUDRenderer(plugin);
         startHudLoop();
     }
@@ -53,6 +56,10 @@ public class UIManager {
         }, interval, interval);
     }
 
+    /**
+     * Renders both action bar and sidebar scoreboard for all players.
+     * Call this after phase transitions where state visibly changes.
+     */
     public void broadcastHUD(List<ArenaPlayer> players) {
         for (ArenaPlayer ap : players) {
             hudRenderer.renderActionBar(ap);
@@ -74,6 +81,19 @@ public class UIManager {
         var topInv = ap.getPlayer().getOpenInventory().getTopInventory();
         if (topInv.getViewers().contains(ap.getPlayer())) {
             shopUI.populateShop(topInv, ap);
+        }
+    }
+
+    // ── Bench ─────────────────────────────────────────────────────────────────
+
+    public void openBench(ArenaPlayer ap) {
+        benchUI.openBench(ap);
+    }
+
+    public void refreshBench(ArenaPlayer ap) {
+        var topInv = ap.getPlayer().getOpenInventory().getTopInventory();
+        if (topInv.getViewers().contains(ap.getPlayer())) {
+            benchUI.populateBench(topInv, ap);
         }
     }
 
@@ -117,6 +137,16 @@ public class UIManager {
         if (bar != null) ap.getPlayer().hideBossBar(bar);
     }
 
+    // ── Player cleanup ────────────────────────────────────────────────────────
+
+    /** Called when a player leaves or is eliminated — clears all their UI state. */
+    public void onPlayerLeave(UUID uuid) {
+        BossBar bar = bossBars.remove(uuid);
+        var p = plugin.getServer().getPlayer(uuid);
+        if (bar != null && p != null) p.hideBossBar(bar);
+        hudRenderer.clearScoreboard(uuid);
+    }
+
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     public void shutdown() {
@@ -126,10 +156,12 @@ public class UIManager {
             if (p != null) p.hideBossBar(bar);
         });
         bossBars.clear();
+        hudRenderer.clearAllScoreboards();
     }
 
     // ── Accessors ─────────────────────────────────────────────────────────────
 
     public ShopUI      getShopUI()      { return shopUI; }
+    public BenchUI     getBenchUI()     { return benchUI; }
     public HUDRenderer getHudRenderer() { return hudRenderer; }
 }

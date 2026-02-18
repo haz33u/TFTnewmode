@@ -11,8 +11,6 @@ import java.util.List;
  *
  * Ability: "Prayer of Abyss Flower"
  * Heals all allies for 400 HP and removes one debuff from each.
- * Passive: after each attack, heals the lowest-HP ally for 8% of max HP
- * (handled in CombatEngine via LUOCHA_PASSIVE status).
  */
 public class Luocha {
 
@@ -27,8 +25,8 @@ public class Luocha {
 
         @Override
         public String getDescription() {
-            return "Heals all allies for " + HEAL_ALL_AMOUNT + " HP and removes one debuff from each. " +
-                   "Passive: heals lowest-HP ally for 8% max HP after each attack.";
+            return "Heals all allies for " + (int) HEAL_ALL_AMOUNT +
+                   " HP and removes one debuff from each.";
         }
 
         @Override
@@ -38,16 +36,11 @@ public class Luocha {
             for (ChampionInstance ally : allies) {
                 if (!ally.isAlive()) continue;
                 ally.heal(HEAL_ALL_AMOUNT);
-                // Remove one negative status (priority: Burn > Poison > Slow > Stun)
-                for (StatusEffect bad : List.of(StatusEffect.STUN, StatusEffect.BURN,
-                                                StatusEffect.POISON, StatusEffect.SLOW)) {
-                    var statuses = ally.getStatusEffects();
-                    if (statuses.containsKey(bad)) {
-                        // Can't remove via unmodifiableMap — we expose a remove method
-                        // In ChampionInstance, getStatusEffects() returns unmodifiable view,
-                        // but we can apply a 0-duration (expiry) next tick trick via ARMOR_SHRED reset:
-                        // For now, the CombatEngine checks LUOCHA_CLEANSE status and removes debuffs.
-                        ally.applyStatus(StatusEffect.LUOCHA_CLEANSE, 1);
+                // Remove one negative status per ally (priority: Burn > Poison > Slow > Stun)
+                for (StatusEffect bad : List.of(StatusEffect.BURN, StatusEffect.POISON,
+                                                StatusEffect.SLOW, StatusEffect.STUN)) {
+                    if (ally.hasStatus(bad)) {
+                        ally.removeStatus(bad);
                         break;
                     }
                 }
