@@ -60,21 +60,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <!--
-            ModelEngine R4 by Ticxo.
-            Purchase at: https://www.spigotmc.org/resources/modelengine.79477/
-            Add the jar to your local Maven repo:
-              mvn install:install-file -Dfile=ModelEngine.jar
-                -DgroupId=com.ticxo.modelengine -DartifactId=ModelEngine
-                -Dversion=R4.0 -Dpackaging=jar
-        -->
-        <dependency>
-            <groupId>com.ticxo.modelengine</groupId>
-            <artifactId>ModelEngine</artifactId>
-            <version>R4.0</version>
-            <scope>provided</scope>
-        </dependency>
-
         <!-- SQLite JDBC (bundled in jar) -->
         <dependency>
             <groupId>org.xerial</groupId>
