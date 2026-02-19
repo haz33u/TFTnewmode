@@ -42,6 +42,42 @@ public class ChampionInstance {
     // Temporary ATK bonus from Bronya's ability — tracked for revert on expiry
     private double harmonyBuffBonus     = 0;
 
+    // ── Trait-specific combat mechanics ──────────────────────────────────────
+
+    /** HUNT: target lowest-HP enemy instead of nearest */
+    private boolean hasHuntTargeting       = false;
+
+    /** DESTRUCTION: stored bonuses for 50%-HP trigger */
+    private boolean hasDestructionTrait    = false;
+    private double  destructionAtkBonus    = 0;
+    private double  destructionOmnivampBonus = 0;
+    private boolean destructionTriggered   = false;
+
+    /** NIHILITY (received): how much harder DoTs tick against this unit */
+    private double  dotReceivedMultiplier  = 1.0;
+
+    /** ERUDITION: after any ability fires, send a bonus true-damage pulse to all enemies */
+    private double  aoeBonusPercent        = 0;
+
+    /** PHYSICAL: every physicalBonusEveryN-th basic attack deals 50% ATK as bonus true damage (0 = off) */
+    private int     physicalBonusEveryN    = 0;
+
+    /** FIRE: chance to apply Burn on each basic attack */
+    private double  burnChance             = 0;
+
+    /** ICE: apply Slow on each basic attack */
+    private boolean hasIceSlow             = false;
+
+    /** LIGHTNING: chain chainDamagePercent * ATK to a random enemy after ability */
+    private double  chainDamagePercent     = 0;
+
+    /** QUANTUM: reduce target MR by this amount on each basic attack */
+    private double  magicResistShred       = 0;
+
+    /** IMAGINARY: apply Weakness on first ability cast */
+    private boolean hasImaginaryTrait      = false;
+    private boolean imaginaryFirstCastDone = false;
+
     // Owner identifier (which ArenaPlayer this belongs to)
     private UUID ownerId;
 
@@ -231,6 +267,46 @@ public class ChampionInstance {
     public void      setHarmonyBuffBonus(double v)        { harmonyBuffBonus = v; }
 
     public Map<StatusEffect, Integer> getStatusEffects()  { return Collections.unmodifiableMap(statusEffects); }
+
+    // ── Trait-specific getters / setters ─────────────────────────────────────
+
+    public boolean isHasHuntTargeting()                        { return hasHuntTargeting; }
+    public void    setHasHuntTargeting(boolean v)              { hasHuntTargeting = v; }
+
+    public boolean isHasDestructionTrait()                     { return hasDestructionTrait; }
+    public void    setHasDestructionTrait(boolean v)           { hasDestructionTrait = v; }
+    public double  getDestructionAtkBonus()                    { return destructionAtkBonus; }
+    public void    setDestructionAtkBonus(double v)            { destructionAtkBonus = v; }
+    public double  getDestructionOmnivampBonus()               { return destructionOmnivampBonus; }
+    public void    setDestructionOmnivampBonus(double v)       { destructionOmnivampBonus = v; }
+    public boolean isDestructionTriggered()                    { return destructionTriggered; }
+    public void    setDestructionTriggered(boolean v)          { destructionTriggered = v; }
+
+    public double  getDotReceivedMultiplier()                  { return dotReceivedMultiplier; }
+    public void    setDotReceivedMultiplier(double v)          { dotReceivedMultiplier = v; }
+
+    public double  getAoeBonusPercent()                        { return aoeBonusPercent; }
+    public void    setAoeBonusPercent(double v)                { aoeBonusPercent = v; }
+
+    public int     getPhysicalBonusEveryN()                    { return physicalBonusEveryN; }
+    public void    setPhysicalBonusEveryN(int v)               { physicalBonusEveryN = v; }
+
+    public double  getBurnChance()                             { return burnChance; }
+    public void    setBurnChance(double v)                     { burnChance = v; }
+
+    public boolean isHasIceSlow()                              { return hasIceSlow; }
+    public void    setHasIceSlow(boolean v)                    { hasIceSlow = v; }
+
+    public double  getChainDamagePercent()                     { return chainDamagePercent; }
+    public void    setChainDamagePercent(double v)             { chainDamagePercent = v; }
+
+    public double  getMagicResistShred()                       { return magicResistShred; }
+    public void    setMagicResistShred(double v)               { magicResistShred = v; }
+
+    public boolean isHasImaginaryTrait()                       { return hasImaginaryTrait; }
+    public void    setHasImaginaryTrait(boolean v)             { hasImaginaryTrait = v; }
+    public boolean isImaginaryFirstCastDone()                  { return imaginaryFirstCastDone; }
+    public void    setImaginaryFirstCastDone(boolean v)        { imaginaryFirstCastDone = v; }
 
     @Override
     public String toString() {

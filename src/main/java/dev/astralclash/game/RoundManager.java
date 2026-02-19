@@ -3,6 +3,9 @@ package dev.astralclash.game;
 import dev.astralclash.AstralClash;
 import dev.astralclash.combat.BattleResult;
 import dev.astralclash.combat.CombatEngine;
+import dev.astralclash.champion.trait.Trait;
+import dev.astralclash.champion.trait.TraitBonus;
+import dev.astralclash.champion.trait.TraitManager;
 import dev.astralclash.player.ArenaPlayer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -17,12 +20,14 @@ public class RoundManager {
 
     private final AstralClash   plugin;
     private final CombatEngine  combatEngine;
+    private final TraitManager  traitManager;
 
     private int roundNumber = 0;
 
     public RoundManager(AstralClash plugin) {
         this.plugin       = plugin;
         this.combatEngine = new CombatEngine(plugin);
+        this.traitManager = new TraitManager();
     }
 
     // ── Round lifecycle ──────────────────────────────────────────────────────
@@ -44,7 +49,10 @@ public class RoundManager {
                     NamedTextColor.GOLD));
         }
 
-        // 2. Roll shops (only for unlocked players)
+        // 2. ABUNDANCE: heal players whose deployed team has active Abundance trait
+        applyAbundanceHeal(players);
+
+        // 3. Roll shops (only for unlocked players)
         for (ArenaPlayer ap : players) {
             if (!ap.isShopLocked()) {
                 plugin.getShopManager().rollShop(ap);
@@ -52,10 +60,10 @@ public class RoundManager {
             plugin.getUIManager().openShop(ap);
         }
 
-        // 3. Planning phase (handled by timer in GameManager — we just wait here
+        // 4. Planning phase (handled by timer in GameManager — we just wait here
         //    in the real async flow; for simulation we skip to combat).
 
-        // 4. Pair players and simulate combat
+        // 5. Pair players and simulate combat
         List<ArenaPlayer> battlers = new ArrayList<>(players);
         Collections.shuffle(battlers);
 
@@ -77,7 +85,7 @@ public class RoundManager {
             lonely.recordWin();
         }
 
-        // 5. Collect eliminated players
+        // 6. Collect eliminated players
         for (ArenaPlayer ap : players) {
             if (ap.isDead()) {
                 eliminated.add(ap);
@@ -87,6 +95,30 @@ public class RoundManager {
         }
 
         return eliminated;
+    }
+
+    // ── ABUNDANCE: heal player HP each round if trait is active ─────────────
+
+    private void applyAbundanceHeal(List<ArenaPlayer> players) {
+        int maxHealth = plugin.getConfigManager().getStartingHealth();
+        for (ArenaPlayer ap : players) {
+            if (ap.getBoard() == null) continue;
+            Map<Trait, TraitBonus> active =
+                    traitManager.computeActiveTraits(ap.getBoard().getDeployedChampions());
+            TraitBonus abundance = active.get(Trait.ABUNDANCE);
+            if (abundance == null) continue;
+            int heal = (int) abundance.getHealPerRoundFlat();
+            if (heal <= 0) continue;
+            int before = ap.getHealth();
+            ap.setHealth(Math.min(maxHealth, before + heal));
+            int actual = ap.getHealth() - before;
+            if (actual > 0) {
+                ap.getPlayer().sendMessage(Component.text(
+                        "Abundance restored " + actual + " HP! (" +
+                        ap.getHealth() + "/" + maxHealth + ")",
+                        NamedTextColor.GREEN));
+            }
+        }
     }
 
     // ── Result processing ────────────────────────────────────────────────────

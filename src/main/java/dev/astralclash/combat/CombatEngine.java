@@ -19,9 +19,10 @@ import java.util.stream.Collectors;
  * <ol>
  *   <li>Tick status effect durations; handle expiry side-effects (e.g. Bronya buff revert).</li>
  *   <li>Process DoT damage (BURN, SHOCK, POISON every 20 ticks).</li>
- *   <li>Each alive, non-stunned unit finds its nearest enemy.</li>
+ *   <li>Each alive, non-stunned unit finds its target (HUNT: lowest HP; others: nearest).</li>
  *   <li>If in attack range, the unit attacks; otherwise waits (visual movement only).</li>
  *   <li>When a unit's mana fills, it casts its ability.</li>
+ *   <li>DESTRUCTION trait: triggers ATK/omnivamp boost when a unit drops below 50% HP.</li>
  *   <li>Dead units are removed.</li>
  *   <li>If one side has no units left → combat ends.</li>
  * </ol>
@@ -73,6 +74,12 @@ public class CombatEngine {
         applyTraitBonuses(teamA, playerA);
         applyTraitBonuses(teamB, playerB);
 
+        // NIHILITY cross-team: enemies of a NIHILITY team take amplified DoT
+        double nihilityMulA = computeNihilityMultiplier(teamA);
+        double nihilityMulB = computeNihilityMultiplier(teamB);
+        if (nihilityMulA > 1.0) teamB.forEach(ci -> ci.setDotReceivedMultiplier(nihilityMulA));
+        if (nihilityMulB > 1.0) teamA.forEach(ci -> ci.setDotReceivedMultiplier(nihilityMulB));
+
         // Initialise cooldowns
         for (ChampionInstance ci : teamA) attackCooldowns.put(ci, 0);
         for (ChampionInstance ci : teamB) attackCooldowns.put(ci, 0);
@@ -106,6 +113,10 @@ public class CombatEngine {
 
         processTeam(teamA, teamB);
         processTeam(teamB, teamA);
+
+        // DESTRUCTION: check if any unit crossed the 50%-HP threshold this tick
+        checkDestructionTrigger(teamA);
+        checkDestructionTrigger(teamB);
     }
 
     private void tickStatuses(List<ChampionInstance> team, int tick) {
@@ -122,13 +133,14 @@ public class CombatEngine {
                 ci.setHarmonyBuffBonus(0);
             }
 
-            // DoT ticks every 20 ticks (1 second)
+            // DoT ticks every 20 ticks (1 second); amplified by NIHILITY on the opposing team
             int acc = dotAccumulator.merge(ci, 1, Integer::sum);
             if (acc >= TICKS_PER_SECOND) {
                 dotAccumulator.put(ci, 0);
-                if (ci.hasStatus(StatusEffect.BURN))   ci.takeMagicDamage(60);
-                if (ci.hasStatus(StatusEffect.SHOCK))  ci.takeMagicDamage(80);
-                if (ci.hasStatus(StatusEffect.POISON)) ci.takeTrueDamage(50);
+                double mul = ci.getDotReceivedMultiplier();
+                if (ci.hasStatus(StatusEffect.BURN))   ci.takeMagicDamage(60 * mul);
+                if (ci.hasStatus(StatusEffect.SHOCK))  ci.takeMagicDamage(80 * mul);
+                if (ci.hasStatus(StatusEffect.POISON)) ci.takeTrueDamage(50 * mul);
             }
         }
     }
@@ -138,8 +150,10 @@ public class CombatEngine {
             if (!ci.isAlive()) continue;
             if (ci.hasStatus(StatusEffect.STUN) || ci.hasStatus(StatusEffect.FREEZE)) continue;
 
-            // Find nearest alive enemy
-            Optional<ChampionInstance> targetOpt = findNearest(ci, enemies);
+            // HUNT trait: target the lowest-HP enemy; others: nearest
+            Optional<ChampionInstance> targetOpt = ci.isHasHuntTargeting()
+                    ? findLowestHp(enemies)
+                    : findNearest(ci, enemies);
             if (targetOpt.isEmpty()) continue;
             ChampionInstance target = targetOpt.get();
 
@@ -177,8 +191,6 @@ public class CombatEngine {
         if (crit) rawDmg *= 1.75;
 
         // ── Fu Xuan damage redirect ───────────────────────────────────────────
-        // If the target has the FU_XUAN_MATRIX marker, 40% of raw damage is
-        // redirected to Fu Xuan (FU_XUAN_TARGET) on the same team.
         double dmgToTarget = rawDmg;
         if (target.hasStatus(StatusEffect.FU_XUAN_MATRIX)) {
             double redirected = rawDmg * 0.40;
@@ -190,21 +202,80 @@ public class CombatEngine {
                     .ifPresent(fx -> fx.takeTrueDamage(redirected));
         }
 
+        // ── IMAGINARY / WEAKNESS: amplify damage if target has Weakness marker ──
+        if (target.hasStatus(StatusEffect.WEAKNESS)) {
+            dmgToTarget *= 1.5;
+            target.removeStatus(StatusEffect.WEAKNESS);
+        }
+
         double dealt = target.takeDamage(dmgToTarget);
 
-        // Omnivamp (Destruction trait)
+        // Omnivamp healing (also triggers for DESTRUCTION if already proc'd)
         if (attacker.getOmnivampPercent() > 0) {
             attacker.heal(dealt * attacker.getOmnivampPercent());
+        }
+
+        // ── Elemental on-hit effects ──────────────────────────────────────────
+
+        // FIRE trait: chance to apply Burn
+        if (attacker.getBurnChance() > 0 && rng.nextDouble() < attacker.getBurnChance()) {
+            target.applyStatus(StatusEffect.BURN, 40);
+        }
+
+        // ICE trait: apply Slow on every hit
+        if (attacker.isHasIceSlow()) {
+            target.applyStatus(StatusEffect.SLOW, 20);
+        }
+
+        // QUANTUM trait: shred target's Magic Resist on every hit
+        if (attacker.getMagicResistShred() > 0) {
+            target.setMagicResist(Math.max(0, target.getMagicResist() - attacker.getMagicResistShred()));
+        }
+
+        // PHYSICAL trait: every N-th basic attack deals 50% ATK as bonus true damage
+        if (attacker.getPhysicalBonusEveryN() > 0
+                && attacker.getAttackCounter() % attacker.getPhysicalBonusEveryN() == 0) {
+            target.takeTrueDamage(attacker.getAttackDamage() * 0.5);
+        }
+
+        // Gepard shield — counter-freeze on hit (25% proc chance)
+        if (target.hasStatus(StatusEffect.GEPARD_SHIELD) && rng.nextInt(100) < 25) {
+            attacker.applyStatus(StatusEffect.FREEZE, 20);
         }
 
         // Mana gain for attacker and target
         boolean abilityReady = attacker.addMana(MANA_PER_ATTACK);
         target.addMana(dealt / 100.0 * MANA_PER_DAMAGE);
 
-        // Fire ability when mana is full; pass the correct allied team
+        // ── Ability cast ──────────────────────────────────────────────────────
         if (abilityReady && attacker.getChampion().getAbility() != null) {
             attacker.consumeMana();
             attacker.getChampion().getAbility().execute(attacker, allies, allEnemies);
+
+            // IMAGINARY: on first ability cast, apply Weakness to the primary attack target
+            if (attacker.isHasImaginaryTrait() && !attacker.isImaginaryFirstCastDone()) {
+                target.applyStatus(StatusEffect.WEAKNESS, 60);
+                attacker.setImaginaryFirstCastDone(true);
+            }
+
+            // ERUDITION: bonus true-damage pulse to all living enemies after ability
+            if (attacker.getAoeBonusPercent() > 0) {
+                double bonusDmg = attacker.getAttackDamage() * attacker.getAoeBonusPercent();
+                for (ChampionInstance enemy : allEnemies) {
+                    if (enemy.isAlive()) {
+                        enemy.takeTrueDamage(bonusDmg);
+                    }
+                }
+            }
+
+            // LIGHTNING: chain chainDamagePercent * ATK as magic damage to a random enemy
+            if (attacker.getChainDamagePercent() > 0) {
+                allEnemies.stream()
+                        .filter(ChampionInstance::isAlive)
+                        .findAny()
+                        .ifPresent(e -> e.takeMagicDamage(
+                                attacker.getAttackDamage() * attacker.getChainDamagePercent()));
+            }
         }
 
         // Reset attack cooldown based on attack speed (reduced if slowed)
@@ -213,10 +284,20 @@ public class CombatEngine {
                 : attacker.getAttackSpeed();
         int cooldownTicks = Math.max(1, (int) (TICKS_PER_SECOND / effectiveAS));
         attackCooldowns.put(attacker, cooldownTicks);
+    }
 
-        // Gepard shield — counter-freeze on hit (25% proc chance)
-        if (target.hasStatus(StatusEffect.GEPARD_SHIELD) && rng.nextInt(100) < 25) {
-            attacker.applyStatus(StatusEffect.FREEZE, 20);
+    // ── DESTRUCTION: mid-combat HP threshold trigger ─────────────────────────
+
+    private void checkDestructionTrigger(List<ChampionInstance> team) {
+        for (ChampionInstance ci : team) {
+            if (!ci.isAlive()) continue;
+            if (!ci.isHasDestructionTrait() || ci.isDestructionTriggered()) continue;
+            if (ci.getHpPercent() < 0.5) {
+                ci.setDestructionTriggered(true);
+                ci.applyStatus(StatusEffect.DESTRUCTION_PROC, Integer.MAX_VALUE);
+                ci.setAttackDamage(ci.getAttackDamage() * (1 + ci.getDestructionAtkBonus()));
+                ci.setOmnivampPercent(ci.getOmnivampPercent() + ci.getDestructionOmnivampBonus());
+            }
         }
     }
 
@@ -235,10 +316,43 @@ public class CombatEngine {
                 TraitBonus bonus = active.get(trait);
                 if (bonus == null) continue;
 
-                atkMult += bonus.getAtkBonusPercent();
-                spdMult += bonus.getAtkSpeedBonusPercent();
-                omni    += bonus.getOmnivampPercent();
-                shield  += bonus.getShieldAmountFlat();
+                switch (trait) {
+                    case DESTRUCTION -> {
+                        // Store bonuses — applied mid-combat when HP drops below 50%
+                        ci.setHasDestructionTrait(true);
+                        ci.setDestructionAtkBonus(bonus.getAtkBonusPercent());
+                        ci.setDestructionOmnivampBonus(bonus.getOmnivampPercent());
+                    }
+                    case HUNT -> {
+                        ci.setHasHuntTargeting(true);
+                        atkMult += bonus.getAtkBonusPercent();
+                        spdMult += bonus.getAtkSpeedBonusPercent();
+                    }
+                    case ERUDITION ->
+                        ci.setAoeBonusPercent(ci.getAoeBonusPercent() + bonus.getAoeBonusPercent());
+                    case FIRE ->
+                        ci.setBurnChance(Math.max(ci.getBurnChance(), bonus.getBurnChance()));
+                    case ICE ->
+                        ci.setHasIceSlow(true);
+                    case LIGHTNING ->
+                        ci.setChainDamagePercent(Math.max(ci.getChainDamagePercent(),
+                                bonus.getChainDamagePercent()));
+                    case QUANTUM ->
+                        ci.setMagicResistShred(Math.max(ci.getMagicResistShred(),
+                                bonus.getMagicResistShred()));
+                    case IMAGINARY ->
+                        ci.setHasImaginaryTrait(true);
+                    case PHYSICAL -> {
+                        int n = (int) bonus.getTrueDamageThreshold();
+                        if (n > 0) ci.setPhysicalBonusEveryN(n);
+                    }
+                    default -> {
+                        atkMult += bonus.getAtkBonusPercent();
+                        spdMult += bonus.getAtkSpeedBonusPercent();
+                        omni    += bonus.getOmnivampPercent();
+                        shield  += bonus.getShieldAmountFlat();
+                    }
+                }
             }
 
             ci.setAttackDamage(ci.getAttackDamage() * atkMult);
@@ -252,6 +366,7 @@ public class CombatEngine {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
+    /** Nearest living enemy (default targeting). */
     private Optional<ChampionInstance> findNearest(ChampionInstance attacker,
                                                     List<ChampionInstance> enemies) {
         return enemies.stream()
@@ -259,6 +374,23 @@ public class CombatEngine {
                 .min(Comparator.comparingDouble(e ->
                         (attacker.getCell() != null && e.getCell() != null)
                                 ? attacker.getCell().distanceTo(e.getCell()) : 1));
+    }
+
+    /** Lowest-HP% living enemy (HUNT trait targeting). */
+    private Optional<ChampionInstance> findLowestHp(List<ChampionInstance> enemies) {
+        return enemies.stream()
+                .filter(ChampionInstance::isAlive)
+                .min(Comparator.comparingDouble(ChampionInstance::getHpPercent));
+    }
+
+    /**
+     * Returns the NIHILITY dotMultiplier for the team (1.0 if no NIHILITY active).
+     * Used to set dotReceivedMultiplier on the opposing team before combat.
+     */
+    private double computeNihilityMultiplier(List<ChampionInstance> team) {
+        Map<Trait, TraitBonus> active = traitManager.computeActiveTraits(team);
+        TraitBonus nb = active.get(Trait.NIHILITY);
+        return nb != null ? nb.getDotMultiplier() : 1.0;
     }
 
     /**
