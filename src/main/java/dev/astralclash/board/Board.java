@@ -22,7 +22,7 @@ import java.util.UUID;
  */
 public class Board {
 
-    private static final int CELL_SPACING = 3; // blocks between cell centres
+    public static final int CELL_SPACING = 3; // blocks between cell centres
 
     private final int rows;
     private final int cols;
@@ -164,4 +164,22 @@ public class Board {
     public int  getRows()    { return rows; }
     public int  getCols()    { return cols; }
     public UUID getOwnerId() { return ownerId; }
+
+    /**
+     * Returns the location where the player should stand to manage their board.
+     * Positioned one block behind the back row, centered on board width, facing row 0.
+     */
+    public Location getSpawnLocation() {
+        // Center column, one CELL_SPACING behind the back row, standing on top of the floor
+        int centerCol  = cols / 2;
+        Location backCenter = cells[rows - 1][centerCol].getWorldLocation();
+        return new Location(
+                backCenter.getWorld(),
+                backCenter.getX(),
+                backCenter.getY() + 1.0,          // standing on top of floor block
+                backCenter.getZ() + CELL_SPACING,  // behind back row
+                180f,                              // yaw 180 = facing north (toward row 0)
+                0f
+        );
+    }
 }
