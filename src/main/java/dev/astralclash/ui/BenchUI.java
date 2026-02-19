@@ -29,7 +29,7 @@ import java.util.List;
 public class BenchUI {
 
     static final String    BENCH_TITLE          = "✦ AstralClash Bench ✦";
-    static final Component BENCH_TITLE_COMPONENT =
+    public static final Component BENCH_TITLE_COMPONENT =
             Component.text(BENCH_TITLE, NamedTextColor.GOLD);
 
     private final AstralClash plugin;

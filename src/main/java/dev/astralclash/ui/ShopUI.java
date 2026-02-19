@@ -32,7 +32,7 @@ import java.util.Map;
 public class ShopUI {
 
     static final String    SHOP_TITLE           = "✦ AstralClash Shop ✦";
-    static final Component SHOP_TITLE_COMPONENT  =
+    public static final Component SHOP_TITLE_COMPONENT  =
             Component.text(SHOP_TITLE, NamedTextColor.LIGHT_PURPLE);
 
     /**
