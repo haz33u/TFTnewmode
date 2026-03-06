@@ -1,11 +1,16 @@
 package dev.astralclash.board;
 
 import dev.astralclash.AstralClash;
+import dev.astralclash.champion.ChampionInstance;
 import dev.astralclash.player.ArenaPlayer;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.Sign;
+import org.bukkit.block.sign.Side;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -79,13 +84,45 @@ public class BoardManager {
         player.setBoard(board);
 
         generatePlatform(player.getUuid(), board, origin, world);
+        
+        // Add player name sign at the front of the board
+        addPlayerNameSign(board, origin, world, player);
 
         Location spawn = board.getSpawnLocation();
-        if (spawn != null && spawn.getWorld() != null) {
+        if (spawn != null && spawn.getWorld() != null && player.getPlayer() != null) {
             player.getPlayer().teleport(spawn);
         }
 
         return board;
+    }
+    
+    /**
+     * Places a sign with the player's name at the front of their board.
+     */
+    private void addPlayerNameSign(Board board, Location origin, World world, ArenaPlayer player) {
+        int rows = board.getRows();
+        int cols = board.getCols();
+        int cs = Board.CELL_SPACING;
+        
+        // Place sign at front row center, facing outward
+        int centerCol = cols / 2;
+        int signX = origin.getBlockX() + centerCol * cs;
+        int signY = origin.getBlockY() + 2;
+        int signZ = origin.getBlockZ() - 1; // One block in front of board
+        
+        Block signBlock = world.getBlockAt(signX, signY, signZ);
+        signBlock.setType(Material.OAK_SIGN);
+        
+        if (signBlock.getState() instanceof Sign sign) {
+            String playerName = player.getPlayer() != null 
+                ? player.getPlayer().getName() 
+                : player.getStats().getUsername();
+            
+            sign.line(0, Component.text("§6§l" + playerName, NamedTextColor.GOLD));
+            sign.line(1, Component.text("§7Board", NamedTextColor.GRAY));
+            sign.line(2, Component.text("§e" + player.getDeployedCount() + "/" + player.getBoardSizeLimit(), NamedTextColor.YELLOW));
+            sign.update();
+        }
     }
 
     public Board getBoard(UUID playerId) {
@@ -94,12 +131,26 @@ public class BoardManager {
 
     public void removeBoard(UUID playerId) {
         Board board = boards.remove(playerId);
-        if (board != null) board.clearAll();
+        if (board != null) {
+            for (ChampionInstance ci : board.getDeployedChampions()) {
+                if (plugin.getModelEngineService().isAvailable()) {
+                    plugin.getModelEngineService().despawnModel(ci);
+                }
+            }
+            board.clearAll();
+        }
         clearPlatform(playerId);
     }
 
     public void removeAll() {
-        for (Board b : boards.values()) b.clearAll();
+        for (Board b : boards.values()) {
+            for (ChampionInstance ci : b.getDeployedChampions()) {
+                if (plugin.getModelEngineService().isAvailable()) {
+                    plugin.getModelEngineService().despawnModel(ci);
+                }
+            }
+            b.clearAll();
+        }
         boards.clear();
         for (UUID uuid : new HashSet<>(placedBlocks.keySet())) {
             clearPlatform(uuid);

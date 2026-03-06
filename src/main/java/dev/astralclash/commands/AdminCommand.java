@@ -58,6 +58,7 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
             case "addchampion"  -> cmdAddChampion(sender, args);
             case "status"       -> cmdStatus(sender);
             case "tp"           -> cmdTp(sender, args);
+            case "testfight"    -> cmdTestFight(sender);
             case "help"         -> { sendAdminHelp(sender); yield true; }
             default             -> { sendAdminHelp(sender); yield true; }
         };
@@ -135,9 +136,12 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(Component.text("No players in lobby!", NamedTextColor.RED));
             return true;
         }
-        plugin.getGameManager().startGame(List.copyOf(
-                lobby.getWaitingPlayers().stream().toList()));
-        sender.sendMessage(Component.text("Force-started the game!", NamedTextColor.GREEN));
+        // Combine players and bots
+        java.util.List<java.util.UUID> allParticipants = new java.util.ArrayList<>(lobby.getWaitingPlayers());
+        allParticipants.addAll(lobby.getWaitingBots());
+        plugin.getGameManager().startGame(allParticipants);
+        sender.sendMessage(Component.text("Force-started with " + 
+            lobby.getPlayerCount() + " players and " + lobby.getBotCount() + " bots!", NamedTextColor.GREEN));
         return true;
     }
 
@@ -184,15 +188,17 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(Component.text("══ AstralClash Game Status ══", NamedTextColor.LIGHT_PURPLE));
 
         var gm = plugin.getGameManager();
+        int roundNum = gm.getRoundManager() != null ? gm.getRoundManager().getRoundNumber() : 0;
         sender.sendMessage(Component.text(
                 "Phase: " + gm.getPhase() +
-                " | Round: " + gm.getRoundManager().getRoundNumber() +
+                " | Round: " + roundNum +
                 " | Players alive: " + gm.getActivePlayers().size(),
                 NamedTextColor.YELLOW));
 
         for (ArenaPlayer ap : gm.getActivePlayers()) {
             int deployed = ap.getDeployedCount();
             int bench    = ap.getBench().size();
+            String pName = ap.getPlayer() != null ? ap.getPlayer().getName() : "Bot";
 
             // Active traits summary
             Map<Trait, Integer> traits = ap.getBoard() != null
@@ -205,7 +211,7 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
 
             sender.sendMessage(Component.text(
                     String.format("  §f%-16s §cHP:§f%3d  §6G:§f%2d  §aLv:§f%d  §e%d+%d units  §7%s",
-                            ap.getPlayer().getName(),
+                            pName,
                             ap.getHealth(),
                             ap.getGold(),
                             ap.getLevel(),
@@ -232,6 +238,45 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    /** Runs one instant combat vs PvE wave 1 for testing. No HP/gold change. */
+    private boolean cmdTestFight(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(Component.text("Must be a player to run test fight.", NamedTextColor.RED));
+            return true;
+        }
+        ArenaPlayer ap = plugin.getPlayerManager().getArenaPlayer(player);
+        if (ap == null) {
+            sender.sendMessage(Component.text("You must be in a game! Use /astral join then /aca forcestart or start with PvE.", NamedTextColor.RED));
+            return true;
+        }
+        if (ap.getBoard() == null || ap.getDeployedCount() == 0) {
+            sender.sendMessage(Component.text("Deploy at least one unit on your board (or /aca addchampion <you> <id> then place).", NamedTextColor.RED));
+            return true;
+        }
+
+        dev.astralclash.combat.CombatEngine engine = new dev.astralclash.combat.CombatEngine(plugin);
+        ArenaPlayer pveOpponent = new dev.astralclash.game.PvEOpponentFactory(plugin).buildPvEOpponent(1);
+        dev.astralclash.combat.BattleResult result = engine.simulate(ap, pveOpponent);
+        java.util.Map<ChampionInstance, Double> dmg = engine.getLastDamageDealt();
+
+        if (result.isDraw()) {
+            player.sendMessage(Component.text("═══ Test Fight: DRAW ═══", NamedTextColor.YELLOW));
+        } else {
+            boolean youWon = result.getWinnerId().equals(ap.getUuid());
+            int dmgTaken = result.getDamageTaken();
+            if (youWon) {
+                player.sendMessage(Component.text("═══ Test Fight: VICTORY ═══", NamedTextColor.GREEN));
+                player.sendMessage(Component.text("You would deal " + dmgTaken + " damage to enemy nexus.", NamedTextColor.GRAY));
+            } else {
+                player.sendMessage(Component.text("═══ Test Fight: DEFEAT ═══", NamedTextColor.RED));
+                player.sendMessage(Component.text("You would take " + dmgTaken + " damage. (HP not changed)", NamedTextColor.GRAY));
+            }
+        }
+        plugin.getCombatUI().renderRoundDamageReport(ap, dmg);
+        player.sendMessage(Component.text("Damage report shown on sidebar.", NamedTextColor.AQUA));
+        return true;
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private StarLevel parseStarLevel(String s) {
@@ -253,12 +298,13 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(Component.text("/aca addchampion <p> <id> [star]— add champion to bench (1-3★)", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/aca status                     — show game state / traits",      NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/aca tp         <p>             — teleport to player",            NamedTextColor.YELLOW));
+        sender.sendMessage(Component.text("/aca testfight                 — run one combat vs PvE (test, no HP change)", NamedTextColor.YELLOW));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command cmd, String label, String[] args) {
         if (args.length == 1) return List.of("reload", "setgold", "addxp", "sethealth",
-                "forcestart", "champions", "addchampion", "status", "tp");
+                "forcestart", "champions", "addchampion", "status", "tp", "testfight");
         if (args.length == 3 && args[0].equalsIgnoreCase("addchampion")) {
             return plugin.getChampionManager().getAllChampions().stream()
                     .map(Champion::getId).toList();

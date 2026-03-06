@@ -59,8 +59,11 @@ public class GameListener implements Listener {
         if (nearest == null) return;
 
         if (nearest.isOccupied()) {
-            // Pick up — move to bench
+            // Pick up — move to bench (despawn 3D model first)
             ChampionInstance ci = nearest.getOccupant();
+            if (plugin.getModelEngineService().isAvailable()) {
+                plugin.getModelEngineService().despawnModel(ci);
+            }
             nearest.clearOccupant();
             if (ap.hasBenchSpace()) {
                 ap.addToBench(ci);
@@ -69,6 +72,10 @@ public class GameListener implements Listener {
             } else {
                 // No bench space — put it back
                 nearest.setOccupant(ci);
+                if (plugin.getModelEngineService().isAvailable()) {
+var loc = nearest.getWorldLocation().clone().add(1.5, 1.0, 1.5);
+                    plugin.getModelEngineService().spawnModel(ci, loc);
+                }
                 player.sendMessage(Component.text("Bench is full!", NamedTextColor.RED));
             }
         } else {
@@ -85,6 +92,11 @@ public class GameListener implements Listener {
             ChampionInstance ci = ap.getBench().get(0);
             if (board.place(ci, nearest.getRow(), nearest.getCol())) {
                 ap.removeFromBench(ci);
+                // Spawn 3D model on the clicked cell
+                if (plugin.getModelEngineService().isAvailable()) {
+                    var loc = nearest.getWorldLocation().clone().add(1.5, 1.0, 1.5);
+                    plugin.getModelEngineService().spawnModel(ci, loc);
+                }
                 player.sendMessage(Component.text(
                         ci.getChampion().getDisplayName() + " placed on the board!", NamedTextColor.GREEN));
             }

@@ -171,7 +171,7 @@ def main():
         path   = os.path.join(out_dir, f"{name}.png")
         with open(path, "wb") as f:
             f.write(make_png(pixels))
-        print(f"  ✓ {name}.png")
+        print(f"  + {name}.png")
 
     # Pack icon
     icon_dir = os.path.join(base)
@@ -179,7 +179,7 @@ def main():
     icon_path = os.path.join(icon_dir, "pack.png")
     with open(icon_path, "wb") as f:
         f.write(make_png(icon_pixels))
-    print(f"  ✓ pack.png (64x64 icon)")
+    print(f"  + pack.png (64x64 icon)")
 
     print(f"\nDone! {len(CHAMPIONS)} champion textures generated.")
     print("Replace PNGs with real artwork (16x16 or 32x32) for the final look.")

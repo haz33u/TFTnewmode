@@ -12,7 +12,7 @@ database:
   pool-size: 10
 
 game:
-  # Minimum players to auto-start a lobby
+  # Minimum players to auto-start a lobby (set to 1 for solo + bots testing)
   min-players: 2
   # Maximum players per game (TFT standard: 8)
   max-players: 8
@@ -57,6 +57,22 @@ game:
   # Distance between player platforms (blocks)
   platform-spacing: 64
 
+  # PvE test mode: single player vs pre-made waves (no other players/bots needed)
+  pve-test-mode: false
+
+# PvE waves: round number -> list of champion IDs (1-star). Used when pve-test-mode is true.
+# Round 1 = first wave, round 2 = second wave, etc. Missing rounds use last defined wave.
+pve:
+  waves:
+    1: [asta, natasha]
+    2: [asta, natasha, dan-heng]
+    3: [asta, natasha, dan-heng, kafka]
+    4: [natasha, dan-heng, kafka, seele]
+    5: [dan-heng, kafka, seele, bronya]
+    6: [kafka, seele, bronya, gepard]
+    7: [seele, bronya, gepard, fu-xuan]
+    8: [seele, bronya, gepard, fu-xuan, blade]
+
 shop:
   # Shop slot count
   slots: 5
@@ -96,6 +112,12 @@ ui:
 
   # Particle effects scale
   particle-scale: 1.0
+
+  # Next-gen feel: sounds and fullscreen titles (set false to disable)
+  sound-combat-start: true
+  sound-victory: true
+  sound-defeat: true
+  title-combat: true
 
 modelengine:
   # Play animations through ModelEngine (requires ModelEngine plugin)

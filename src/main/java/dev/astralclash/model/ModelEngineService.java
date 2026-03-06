@@ -82,10 +82,20 @@ public class ModelEngineService {
     // ── Spawn ─────────────────────────────────────────────────────────────────
 
     public boolean spawnModel(ChampionInstance ci, Location location) {
-        if (!available || location.getWorld() == null) return false;
+        if (!available || location.getWorld() == null) {
+            plugin.getLogger().info("[ModelEngineService] Cannot spawn: ModelEngine not available or world is null");
+            return false;
+        }
 
         String modelId = ci.getChampion().getModelId();
-        if (modelId == null || modelId.isBlank()) return false;
+        if (modelId == null || modelId.isBlank()) {
+            plugin.getLogger().warning("[ModelEngineService] Champion " + ci.getChampion().getDisplayName() 
+                + " has no model-id!");
+            return false;
+        }
+
+        plugin.getLogger().info("[ModelEngineService] Attempting to spawn model '" + modelId 
+            + "' for " + ci.getChampion().getDisplayName() + " at " + location);
 
         try {
             ArmorStand stand = (ArmorStand) location.getWorld()
@@ -94,12 +104,25 @@ public class ModelEngineService {
             stand.setGravity(false);
             stand.setInvulnerable(true);
             stand.setSmall(false);
+            stand.setMarker(true); // Marker mode - doesn't interact with blocks
+            stand.setCollidable(false);
+            stand.setPersistent(true); // Don't despawn
+            stand.setRemoveWhenFarAway(false); // Don't remove when far
 
             Object me = mCreateModeledEntity.invoke(null, stand);
-            if (me == null) { stand.remove(); return false; }
+            if (me == null) { 
+                plugin.getLogger().warning("[ModelEngineService] Failed to create ModeledEntity");
+                stand.remove(); 
+                return false; 
+            }
 
             Object model = mCreateActiveModel.invoke(null, modelId);
-            if (model == null) { stand.remove(); return false; }
+            if (model == null) { 
+                plugin.getLogger().warning("[ModelEngineService] Model '" + modelId 
+                    + "' not found! Check if blueprint exists in ModelEngine/blueprints/");
+                stand.remove(); 
+                return false; 
+            }
 
             mAddModel.invoke(me, model, true);
             mSetBaseEntityVisible.invoke(me, false);
@@ -107,13 +130,17 @@ public class ModelEngineService {
             ci.setModelEntityId(stand.getUniqueId());
             instanceToEntity.put(ci.getModelEntityId(), stand.getUniqueId());
 
+            plugin.getLogger().info("[ModelEngineService] Successfully spawned model '" + modelId 
+                + "' for " + ci.getChampion().getDisplayName());
+            
             playAnimation(ci, "idle", true);
             return true;
 
         } catch (Exception e) {
             plugin.getLogger().log(Level.WARNING,
                     "[ModelEngineService] Failed to spawn model for "
-                    + ci.getChampion().getDisplayName(), e);
+                    + ci.getChampion().getDisplayName() + " (modelId: " + modelId + ")", e);
+            e.printStackTrace();
             return false;
         }
     }

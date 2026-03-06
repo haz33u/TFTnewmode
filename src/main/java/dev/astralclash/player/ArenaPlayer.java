@@ -50,7 +50,7 @@ public class ArenaPlayer {
 
     public ArenaPlayer(AstralClash plugin, Player player, PlayerStats stats) {
         this.plugin  = plugin;
-        this.uuid    = player.getUniqueId();
+        this.uuid    = player != null ? player.getUniqueId() : stats.getUuid();
         this.player  = player;
         this.stats   = stats;
 

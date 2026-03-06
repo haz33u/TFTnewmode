@@ -28,7 +28,7 @@ if [ -f "$PROPS" ]; then
   cat >> "$PROPS" <<EOF
 resource-pack=http://localhost:8765/astralclash-pack.zip
 resource-pack-sha1=${SHA1}
-resource-pack-prompt=\u00a75AstralClash \u00a77requires the resource pack for champion icons
+resource-pack-prompt={"text":"AstralClash requires resource pack","color":"light_purple"}
 EOF
   echo "==> server.properties обновлён (resource-pack URL прописан)"
 fi

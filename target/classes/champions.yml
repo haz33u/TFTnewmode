@@ -1,0 +1,425 @@
+# ============================================================
+#   AstralClash — Champion Definitions
+#   All stat values are at 1-star. Multiply by 1.8 for 2-star,
+#   3.24 for 3-star.
+# ============================================================
+
+champions:
+
+  # ── TIER 1 ────────────────────────────────────────────────
+
+  asta:
+    display-name: "Asta"
+    tier: 1
+    cost: 1
+    traits:
+      - HARMONY
+      - FIRE
+    stats:
+      hp: 550
+      armor: 30
+      magic-resist: 30
+      attack-damage: 40
+      attack-speed: 0.75   # attacks per second
+      attack-range: 1
+      move-speed: 300
+      mana: 0
+      max-mana: 80
+    model-id: "asta"
+    ability:
+      name: "Ignite the Fire"
+      description: "Burns enemies in a cone, dealing fire damage and applying Burn for 3 rounds."
+      type: ACTIVE
+      damage: 100
+      duration-rounds: 3
+
+  natasha:
+    display-name: "Natasha"
+    tier: 1
+    cost: 1
+    traits:
+      - ABUNDANCE
+      - PHYSICAL
+    stats:
+      hp: 600
+      armor: 35
+      magic-resist: 25
+      attack-damage: 35
+      attack-speed: 0.65
+      attack-range: 2
+      move-speed: 280
+      mana: 0
+      max-mana: 60
+    model-id: "natasha"
+    ability:
+      name: "Healer's Touch"
+      description: "Heals the lowest-HP ally for a large amount."
+      type: ACTIVE
+      heal: 150
+      duration-rounds: 0
+
+  dan-heng:
+    display-name: "Dan Heng"
+    tier: 1
+    cost: 1
+    traits:
+      - HUNT
+      - WIND
+    stats:
+      hp: 500
+      armor: 20
+      magic-resist: 20
+      attack-damage: 65
+      attack-speed: 1.0
+      attack-range: 1
+      move-speed: 320
+      mana: 0
+      max-mana: 70
+    model-id: "dan_heng"
+    ability:
+      name: "Ethereal Dream"
+      description: "Launches a gale that deals Wind damage and Slows the target."
+      type: ACTIVE
+      damage: 180
+      slow-percent: 40
+      slow-duration-rounds: 2
+
+  march7th:
+    display-name: "March 7th"
+    tier: 1
+    cost: 1
+    traits:
+      - PRESERVATION
+      - ICE
+    stats:
+      hp: 650
+      armor: 50
+      magic-resist: 40
+      attack-damage: 40
+      attack-speed: 0.80
+      attack-range: 1
+      move-speed: 280
+      mana: 0
+      max-mana: 90
+    model-id: "march7th"
+    ability:
+      name: "I'm the Protector!"
+      description: "Shields the lowest-HP ally and herself. Counters the next basic attack taken."
+      type: ACTIVE
+      shield-amount: 200
+      shield-duration-rounds: 2
+
+  pela:
+    display-name: "Pela"
+    tier: 1
+    cost: 1
+    traits:
+      - NIHILITY
+      - ICE
+    stats:
+      hp: 520
+      armor: 25
+      magic-resist: 30
+      attack-damage: 45
+      attack-speed: 0.85
+      attack-range: 2
+      move-speed: 295
+      mana: 0
+      max-mana: 75
+    model-id: "pela"
+    ability:
+      name: "Zone Suppression"
+      description: "Shreds the defense of all enemies, reducing their armor for 2 rounds."
+      type: ACTIVE
+      armor-shred-percent: 30
+      duration-rounds: 2
+
+  # ── TIER 2 ────────────────────────────────────────────────
+
+  welt:
+    display-name: "Welt"
+    tier: 2
+    cost: 2
+    traits:
+      - NIHILITY
+      - IMAGINARY
+    stats:
+      hp: 700
+      armor: 35
+      magic-resist: 35
+      attack-damage: 55
+      attack-speed: 0.70
+      attack-range: 3
+      move-speed: 270
+      mana: 0
+      max-mana: 100
+    model-id: "welt"
+    ability:
+      name: "Imprisonment"
+      description: "Deals Imaginary damage to 3 enemies and Imprisons them (unable to act) for 1.5s."
+      type: ACTIVE
+      damage: 200
+      targets: 3
+      imprison-duration-ticks: 30
+
+  gepard:
+    display-name: "Gepard"
+    tier: 2
+    cost: 2
+    traits:
+      - PRESERVATION
+      - ICE
+    stats:
+      hp: 900
+      armor: 80
+      magic-resist: 60
+      attack-damage: 50
+      attack-speed: 0.65
+      attack-range: 1
+      move-speed: 260
+      mana: 0
+      max-mana: 110
+    model-id: "gepard"
+    ability:
+      name: "Enduring Bulwark"
+      description: "Creates a shield for all allies. Frozen Aura: chance to freeze attackers."
+      type: ACTIVE
+      shield-amount: 300
+      freeze-chance-percent: 25
+
+  bronya:
+    display-name: "Bronya"
+    tier: 2
+    cost: 2
+    traits:
+      - HARMONY
+      - WIND
+    stats:
+      hp: 600
+      armor: 30
+      magic-resist: 30
+      attack-damage: 50
+      attack-speed: 0.75
+      attack-range: 2
+      move-speed: 285
+      mana: 0
+      max-mana: 95
+    model-id: "bronya"
+    ability:
+      name: "The Belobog March"
+      description: "Grants the ally with the highest ATK an extra action and ATK buff."
+      type: ACTIVE
+      atk-buff-percent: 40
+      buff-duration-rounds: 2
+
+  # ── TIER 3 ────────────────────────────────────────────────
+
+  seele:
+    display-name: "Seele"
+    tier: 3
+    cost: 3
+    traits:
+      - HUNT
+      - QUANTUM
+    stats:
+      hp: 750
+      armor: 30
+      magic-resist: 25
+      attack-damage: 100
+      attack-speed: 1.10
+      attack-range: 1
+      move-speed: 340
+      mana: 0
+      max-mana: 85
+    model-id: "seele"
+    ability:
+      name: "Butterfly Flurry"
+      description: "Seele enters Resurgence: gains massive ATK and SPD. If she kills a target, the ability refreshes."
+      type: ACTIVE
+      damage: 300
+      resurgence-atk-buff-percent: 80
+      resurgence-spd-buff-percent: 25
+
+  himeko:
+    display-name: "Himeko"
+    tier: 3
+    cost: 3
+    traits:
+      - ERUDITION
+      - FIRE
+    stats:
+      hp: 700
+      armor: 28
+      magic-resist: 35
+      attack-damage: 80
+      attack-speed: 0.80
+      attack-range: 2
+      move-speed: 290
+      mana: 0
+      max-mana: 90
+    model-id: "himeko"
+    ability:
+      name: "Starfire Celestia"
+      description: "Launches a tri-beam blast hitting all enemies in a line. Burns them for extra damage over 3 rounds."
+      type: ACTIVE
+      damage: 280
+      burn-damage-per-round: 60
+      burn-duration-rounds: 3
+
+  kafka:
+    display-name: "Kafka"
+    tier: 3
+    cost: 3
+    traits:
+      - NIHILITY
+      - LIGHTNING
+    stats:
+      hp: 680
+      armor: 25
+      magic-resist: 30
+      attack-damage: 85
+      attack-speed: 0.95
+      attack-range: 2
+      move-speed: 310
+      mana: 0
+      max-mana: 80
+    model-id: "kafka"
+    ability:
+      name: "Twilight Trill"
+      description: "Forces all DoT effects on enemies to immediately trigger an extra time. Applies Shock to all enemies."
+      type: ACTIVE
+      shock-damage-per-round: 80
+      shock-duration-rounds: 3
+
+  # ── TIER 4 ────────────────────────────────────────────────
+
+  jing-yuan:
+    display-name: "Jing Yuan"
+    tier: 4
+    cost: 4
+    traits:
+      - ERUDITION
+      - LIGHTNING
+    stats:
+      hp: 900
+      armor: 40
+      magic-resist: 40
+      attack-damage: 110
+      attack-speed: 0.70
+      attack-range: 2
+      move-speed: 275
+      mana: 0
+      max-mana: 120
+    model-id: "jing_yuan"
+    ability:
+      name: "Lightbringer"
+      description: "Summons the Lightning Lord to attack all enemies multiple times. Each hit deals massive Lightning damage."
+      type: ACTIVE
+      hits: 6
+      damage-per-hit: 150
+
+  fu-xuan:
+    display-name: "Fu Xuan"
+    tier: 4
+    cost: 4
+    traits:
+      - PRESERVATION
+      - QUANTUM
+    stats:
+      hp: 1100
+      armor: 55
+      magic-resist: 55
+      attack-damage: 70
+      attack-speed: 0.65
+      attack-range: 1
+      move-speed: 260
+      mana: 0
+      max-mana: 130
+    model-id: "fu_xuan"
+    ability:
+      name: "Known by Stars, Shown by Hearts"
+      description: "Redirects 40% of damage taken by all allies to Fu Xuan. Grants a crit rate buff to all allies."
+      type: ACTIVE
+      damage-redirect-percent: 40
+      crit-rate-buff-percent: 15
+      duration-rounds: 3
+
+  luocha:
+    display-name: "Luocha"
+    tier: 4
+    cost: 4
+    traits:
+      - ABUNDANCE
+      - IMAGINARY
+    stats:
+      hp: 800
+      armor: 35
+      magic-resist: 45
+      attack-damage: 75
+      attack-speed: 0.75
+      attack-range: 3
+      move-speed: 280
+      mana: 0
+      max-mana: 100
+    model-id: "luocha"
+    ability:
+      name: "Prayer of Abyss Flower"
+      description: "Passively heals the lowest-HP ally after each attack. Active: heals all allies and removes debuffs."
+      type: ACTIVE
+      heal-all: 400
+      passive-heal-percent: 8
+
+  # ── TIER 5 ────────────────────────────────────────────────
+
+  jingliu:
+    display-name: "Jingliu"
+    tier: 5
+    cost: 5
+    traits:
+      - DESTRUCTION
+      - ICE
+    stats:
+      hp: 1000
+      armor: 35
+      magic-resist: 35
+      attack-damage: 150
+      attack-speed: 1.05
+      attack-range: 1
+      move-speed: 330
+      mana: 0
+      max-mana: 100
+    model-id: "jingliu"
+    ability:
+      name: "Transcendent Flash"
+      description: "Jingliu enters Spectral Transmigration: massively increases ATK by consuming team HP. Deals massive AoE Ice damage."
+      type: ACTIVE
+      damage: 600
+      atk-buff-percent: 100
+      team-hp-cost-percent: 8
+
+  blade:
+    display-name: "Blade"
+    tier: 5
+    cost: 5
+    traits:
+      - DESTRUCTION
+      - WIND
+    stats:
+      hp: 1200
+      armor: 30
+      magic-resist: 30
+      attack-damage: 130
+      attack-speed: 0.90
+      attack-range: 1
+      move-speed: 315
+      mana: 0
+      max-mana: 0       # Blade uses HP as resource
+    model-id: "blade"
+    ability:
+      name: "Death Sentence"
+      description: "Blade sacrifices his own HP to unleash a massive multi-target slash. Heals based on damage dealt."
+      type: ACTIVE
+      damage: 500
+      self-hp-cost-percent: 20
+      lifesteal-percent: 50
+      targets: 3

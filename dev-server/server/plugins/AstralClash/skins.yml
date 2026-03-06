@@ -1,0 +1,66 @@
+# # AstralClash Champion Skins Configuration
+# #
+# # HOW TO GET SKINS:
+# # 1. Go to https://mineskin.org or https://namemc.com
+# # 2. Find/upload a skin that looks like the HSR character
+# # 3. Copy the base64 texture value
+# # 4. Paste it below for the corresponding champion
+# #
+# # Format:
+# # champion_id:
+# #   texture: "base64_texture_value"
+# #   signature: "base64_signature" (optional, from mineskin)
+# #
+# # Example with real MineSkin data:
+# # asta:
+# #   texture: "eyJ0aW1lc3RhbXAi..."
+# #   signature: "abc123..."
+
+jing_yuan:
+  texture: ''
+  signature: ''
+seele:
+  texture: ''
+  signature: ''
+natasha:
+  texture: ''
+  signature: ''
+pela:
+  texture: ''
+  signature: ''
+march7th:
+  texture: ''
+  signature: ''
+kafka:
+  texture: ''
+  signature: ''
+dan_heng:
+  texture: ''
+  signature: ''
+gepard:
+  texture: ''
+  signature: ''
+jingliu:
+  texture: ''
+  signature: ''
+asta:
+  texture: ''
+  signature: ''
+himeko:
+  texture: ''
+  signature: ''
+fu_xuan:
+  texture: ''
+  signature: ''
+blade:
+  texture: ''
+  signature: ''
+luocha:
+  texture: ''
+  signature: ''
+bronya:
+  texture: ''
+  signature: ''
+welt:
+  texture: ''
+  signature: ''

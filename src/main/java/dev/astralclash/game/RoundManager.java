@@ -63,26 +63,34 @@ public class RoundManager {
         // 4. Planning phase (handled by timer in GameManager — we just wait here
         //    in the real async flow; for simulation we skip to combat).
 
-        // 5. Pair players and simulate combat
+        // 5. Pair players and simulate combat (or PvE wave in test mode)
         List<ArenaPlayer> battlers = new ArrayList<>(players);
-        Collections.shuffle(battlers);
+        boolean pveTestMode = plugin.getConfigManager().isPveTestMode();
 
-        List<BattleResult> results = new ArrayList<>();
-
-        // Pair up players (odd one gets a ghost round vs previous ghost)
-        for (int i = 0; i + 1 < battlers.size(); i += 2) {
-            ArenaPlayer a = battlers.get(i);
-            ArenaPlayer b = battlers.get(i + 1);
-            BattleResult result = combatEngine.simulate(a, b);
-            results.add(result);
-            processResult(result, a, b);
-        }
-        // If odd number of players, last player fights their own previous board (ghost)
-        if (battlers.size() % 2 == 1) {
-            ArenaPlayer lonely = battlers.get(battlers.size() - 1);
-            lonely.getPlayer().sendMessage(Component.text(
-                    "No opponent found — ghost round! No damage taken.", NamedTextColor.GRAY));
-            lonely.recordWin();
+        if (pveTestMode && battlers.size() == 1) {
+            // PvE test mode: single player vs pre-made wave for this round
+            ArenaPlayer human = battlers.get(0);
+            ArenaPlayer pveOpponent = new PvEOpponentFactory(plugin).buildPvEOpponent(roundNumber);
+            BattleResult result = combatEngine.simulate(human, pveOpponent);
+            java.util.Map<dev.astralclash.champion.ChampionInstance, Double> dmg = combatEngine.getLastDamageDealt();
+            processResult(result, human, pveOpponent, dmg);
+        } else {
+            Collections.shuffle(battlers);
+            for (int i = 0; i + 1 < battlers.size(); i += 2) {
+                ArenaPlayer a = battlers.get(i);
+                ArenaPlayer b = battlers.get(i + 1);
+                BattleResult result = combatEngine.simulate(a, b);
+                java.util.Map<dev.astralclash.champion.ChampionInstance, Double> dmg = combatEngine.getLastDamageDealt();
+                processResult(result, a, b, dmg);
+            }
+            if (battlers.size() % 2 == 1) {
+                ArenaPlayer lonely = battlers.get(battlers.size() - 1);
+                if (lonely.getPlayer() != null) {
+                    lonely.getPlayer().sendMessage(Component.text(
+                            "No opponent found — ghost round! No damage taken.", NamedTextColor.GRAY));
+                }
+                lonely.recordWin();
+            }
         }
 
         // 6. Collect eliminated players
@@ -123,12 +131,13 @@ public class RoundManager {
 
     // ── Result processing ────────────────────────────────────────────────────
 
-    private void processResult(BattleResult result, ArenaPlayer a, ArenaPlayer b) {
+    private void processResult(BattleResult result, ArenaPlayer a, ArenaPlayer b,
+                            java.util.Map<dev.astralclash.champion.ChampionInstance, Double> damageDealt) {
         if (result.isDraw()) {
             a.recordLoss();
             b.recordLoss();
-            a.getPlayer().sendMessage(Component.text("Draw! No damage dealt.", NamedTextColor.YELLOW));
-            b.getPlayer().sendMessage(Component.text("Draw! No damage dealt.", NamedTextColor.YELLOW));
+            if (a.getPlayer() != null) a.getPlayer().sendMessage(Component.text("Draw! No damage dealt.", NamedTextColor.YELLOW));
+            if (b.getPlayer() != null) b.getPlayer().sendMessage(Component.text("Draw! No damage dealt.", NamedTextColor.YELLOW));
             return;
         }
 
@@ -140,16 +149,34 @@ public class RoundManager {
         loser.recordLoss();
         loser.takeDamage(result.getDamageTaken());
 
-        winner.getPlayer().sendMessage(Component.text(
-                "Victory! " + loser.getPlayer().getName() + " takes " +
-                result.getDamageTaken() + " damage.", NamedTextColor.GREEN));
-        loser.getPlayer().sendMessage(Component.text(
-                "Defeat! You take " + result.getDamageTaken() + " damage. HP: " +
-                loser.getHealth() + "/" + plugin.getConfigManager().getStartingHealth(),
-                NamedTextColor.RED));
+        if (winner.getPlayer() != null) {
+            String loserName = loser.getPlayer() != null ? loser.getPlayer().getName() : "PvE";
+            winner.getPlayer().sendMessage(Component.text(
+                    "Victory! " + loserName + " takes " +
+                    result.getDamageTaken() + " damage.", NamedTextColor.GREEN));
+            if (plugin.getConfigManager().isSoundVictory()) {
+                winner.getPlayer().playSound(winner.getPlayer().getLocation(),
+                    org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.5f, 1.0f);
+            }
+        }
+        if (loser.getPlayer() != null) {
+            loser.getPlayer().sendMessage(Component.text(
+                    "Defeat! You take " + result.getDamageTaken() + " damage. HP: " +
+                    loser.getHealth() + "/" + plugin.getConfigManager().getStartingHealth(),
+                    NamedTextColor.RED));
+            if (plugin.getConfigManager().isSoundDefeat()) {
+                loser.getPlayer().playSound(loser.getPlayer().getLocation(),
+                    org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.4f, 0.9f);
+            }
+        }
+        if (winner.getPlayer() != null) {
+            winner.getStats().addDamage(result.getDamageTaken());
+        }
 
-        // Stats
-        winner.getStats().addDamage(result.getDamageTaken());
+        if (damageDealt != null && !damageDealt.isEmpty()) {
+            if (a.getPlayer() != null) plugin.getCombatUI().renderRoundDamageReport(a, damageDealt);
+            if (b.getPlayer() != null) plugin.getCombatUI().renderRoundDamageReport(b, damageDealt);
+        }
     }
 
     public int getRoundNumber() { return roundNumber; }

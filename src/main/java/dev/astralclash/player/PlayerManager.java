@@ -62,6 +62,13 @@ public class PlayerManager {
     public Collection<ArenaPlayer> getAllArenaPlayers() {
         return Collections.unmodifiableCollection(arenaPlayers.values());
     }
+    
+    /**
+     * Registers an ArenaPlayer for a bot (doesn't require real Player object).
+     */
+    public void registerBotArenaPlayer(UUID uuid, ArenaPlayer ap) {
+        arenaPlayers.put(uuid, ap);
+    }
 
     /** Saves all in-memory player stats immediately (e.g., on shutdown). */
     public void saveAll() {

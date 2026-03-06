@@ -26,8 +26,11 @@ else
   echo "==> Paper уже есть, пропускаем."
 fi
 
-# ── EULA ─────────────────────────────────────────────────────────────────────
-echo "eula=true" > "$SERVER_DIR/eula.txt"
+# ── EULA (обязательно для запуска сервера) ───────────────────────────────────
+cat > "$SERVER_DIR/eula.txt" <<'EULA'
+#By changing the setting below to TRUE you are indicating your agreement to our EULA (https://aka.ms/MinecraftEULA).
+eula=true
+EULA
 
 # ── server.properties (dev-настройки) ───────────────────────────────────────
 cat > "$SERVER_DIR/server.properties" <<'EOF'
@@ -38,6 +41,9 @@ motd=AstralClash DEV
 level-name=world
 spawn-protection=0
 view-distance=10
+enable-rcon=true
+rcon.port=25575
+rcon.password=devpass
 EOF
 
 # ── bukkit.yml — отключаем спавн мобов для чистоты ───────────────────────────
@@ -61,9 +67,11 @@ echo "==> Копируем $PLUGIN_JAR -> plugins/"
 cp "$PLUGIN_JAR" "$SERVER_DIR/plugins/"
 
 echo ""
-echo "┌─────────────────────────────────────────────────────┐"
-echo "│  Готово! Положи в $SERVER_DIR/plugins/ вручную:     │"
-echo "│    • ModelEngine-R4.x.jar  (купить на SpigotMC)     │"
-echo "│    • packetevents-spigot-2.x.jar                    │"
-echo "│  Затем запускай: bash dev-server/start.sh           │"
-echo "└─────────────────────────────────────────────────────┘"
+echo "┌──────────────────────────────────────────────────────────────────┐"
+echo "│  Готово! Положи в $SERVER_DIR/plugins/ вручную:                  │"
+echo "│    • packetevents-spigot-2.x.jar  (обязательно)                 │"
+echo "│    • PlugManX-3.x.jar             (для /plugman reload)         │"
+echo "│    • ModelEngine-R4.x.jar        (опционально, 3D-модели)      │"
+echo "│  Подробно: dev-server/PLUGINS.md                                │"
+echo "│  Запуск: bash dev-server/start.sh   или   .\\dev-server\\start.ps1 │"
+echo "└──────────────────────────────────────────────────────────────────┘"

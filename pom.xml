@@ -52,12 +52,12 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- PacketEvents 2.x -->
+        <!-- PacketEvents 2.x — shaded into jar (no separate plugin needed) -->
         <dependency>
             <groupId>com.github.retrooper</groupId>
             <artifactId>packetevents-spigot</artifactId>
             <version>2.7.0</version>
-            <scope>provided</scope>
+            <scope>compile</scope>
         </dependency>
 
         <!-- SQLite JDBC (bundled in jar) -->
@@ -109,10 +109,7 @@
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <relocations>
-                                <relocation>
-                                    <pattern>org.sqlite</pattern>
-                                    <shadedPattern>dev.astralclash.libs.sqlite</shadedPattern>
-                                </relocation>
+                                <!-- SQLite: DO NOT relocate - breaks native .dll/.so loading -->
                                 <relocation>
                                     <pattern>com.zaxxer.hikari</pattern>
                                     <shadedPattern>dev.astralclash.libs.hikari</shadedPattern>
@@ -126,6 +123,13 @@
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                                <!-- Exclude plugin.yml from PacketEvents (we are the plugin) -->
+                                <filter>
+                                    <artifact>com.github.retrooper:packetevents-spigot</artifact>
+                                    <excludes>
+                                        <exclude>**/plugin.yml</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

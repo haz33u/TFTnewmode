@@ -133,6 +133,9 @@ public class ShopManager {
         boolean removed = player.removeFromBench(ci);
         if (!removed && player.getBoard() != null) {
             player.getBoard().findCell(ci).ifPresent(cell -> {
+                if (plugin.getModelEngineService().isAvailable()) {
+                    plugin.getModelEngineService().despawnModel(ci);
+                }
                 cell.clearOccupant();
             });
         }

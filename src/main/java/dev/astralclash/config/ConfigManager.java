@@ -61,6 +61,19 @@ public class ConfigManager {
 
     public String  getArenaWorld()          { return cfg().getString("game.arena-world", "astral_arena"); }
     public int     getPlatformSpacing()     { return cfg().getInt("game.platform-spacing", 64); }
+    public boolean isPveTestMode()          { return cfg().getBoolean("game.pve-test-mode", false); }
+
+    /** Champion IDs for PvE wave at given round (1-based). Empty if not configured. */
+    public java.util.List<String> getPveWaveChampions(int round) {
+        var list = cfg().getStringList("pve.waves." + round);
+        if (list != null && !list.isEmpty()) return list;
+        // Fallback: try previous rounds
+        for (int r = round - 1; r >= 1; r--) {
+            var prev = cfg().getStringList("pve.waves." + r);
+            if (prev != null && !prev.isEmpty()) return prev;
+        }
+        return java.util.List.of("asta", "natasha");
+    }
 
     // ── Shop ─────────────────────────────────────────────────────────────────
 
@@ -79,6 +92,10 @@ public class ConfigManager {
 
     public int     getHudUpdateInterval()   { return cfg().getInt("ui.hud-update-interval", 10); }
     public boolean isShowDamageNumbers()    { return cfg().getBoolean("ui.show-damage-numbers", true); }
+    public boolean isSoundCombatStart()     { return cfg().getBoolean("ui.sound-combat-start", true); }
+    public boolean isSoundVictory()         { return cfg().getBoolean("ui.sound-victory", true); }
+    public boolean isSoundDefeat()          { return cfg().getBoolean("ui.sound-defeat", true); }
+    public boolean isTitleCombat()          { return cfg().getBoolean("ui.title-combat", true); }
 
     // ── ModelEngine ──────────────────────────────────────────────────────────
 

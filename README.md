@@ -84,6 +84,23 @@ bash dev-server/setup.sh
 bash dev-server/start.sh
 ```
 
+**Windows (PowerShell):**
+```powershell
+# Один раз:
+.\dev-server\setup.ps1
+
+# Положи плагины в dev-server\server\plugins\ (см. dev-server\PLUGINS.md)
+
+# Каждый раз:
+.\dev-server\start.ps1
+```
+
+Resource-pack (иконки чемпионов):
+```powershell
+.\resource-pack\pack.ps1
+# В другом терминале: cd dev-server\server; python -m http.server 8765
+```
+
 ---
 
 ## КАК ДЕБАЖИТЬ

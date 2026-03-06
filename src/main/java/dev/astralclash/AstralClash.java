@@ -1,6 +1,7 @@
 package dev.astralclash;
 
 import com.github.retrooper.packetevents.PacketEvents;
+import dev.astralclash.bot.BotManager;
 import dev.astralclash.champion.ChampionManager;
 import dev.astralclash.commands.AdminCommand;
 import dev.astralclash.commands.ArenaCommand;
@@ -10,9 +11,12 @@ import dev.astralclash.economy.EconomyManager;
 import dev.astralclash.game.GameManager;
 import dev.astralclash.listeners.GameListener;
 import dev.astralclash.listeners.PlayerListener;
+import dev.astralclash.model.ChampionSkinManager;
 import dev.astralclash.model.ModelEngineService;
 import dev.astralclash.player.PlayerManager;
 import dev.astralclash.shop.ShopManager;
+import dev.astralclash.ui.CombatUI;
+import dev.astralclash.ui.HealthBarRenderer;
 import dev.astralclash.ui.UIManager;
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -21,15 +25,19 @@ public final class AstralClash extends JavaPlugin {
 
     private static AstralClash instance;
 
-    private ConfigManager      configManager;
-    private DatabaseManager    databaseManager;
-    private PlayerManager      playerManager;
-    private ChampionManager    championManager;
-    private EconomyManager     economyManager;
-    private ShopManager        shopManager;
-    private GameManager        gameManager;
-    private UIManager          uiManager;
-    private ModelEngineService modelEngineService;
+    private ConfigManager       configManager;
+    private DatabaseManager     databaseManager;
+    private PlayerManager       playerManager;
+    private ChampionManager     championManager;
+    private EconomyManager      economyManager;
+    private ShopManager         shopManager;
+    private GameManager         gameManager;
+    private UIManager           uiManager;
+    private ModelEngineService  modelEngineService;
+    private BotManager          botManager;
+    private ChampionSkinManager skinManager;
+    private CombatUI            combatUI;
+    private HealthBarRenderer   healthBarRenderer;
 
     // ── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -61,6 +69,10 @@ public final class AstralClash extends JavaPlugin {
         this.gameManager         = new GameManager(this);
         this.uiManager           = new UIManager(this);
         this.modelEngineService  = new ModelEngineService(this);
+        this.botManager          = new BotManager(this);
+        this.skinManager         = new ChampionSkinManager(this);
+        this.combatUI            = new CombatUI(this);
+        this.healthBarRenderer   = new HealthBarRenderer(this);
 
         // Commands
         var arenaCmd = getCommand("astral");
@@ -81,6 +93,9 @@ public final class AstralClash extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (healthBarRenderer != null)  healthBarRenderer.removeAll();
+        if (combatUI != null)           combatUI.clearAll();
+        if (botManager != null)         botManager.removeAllBots();
         if (modelEngineService != null) modelEngineService.despawnAll();
         if (gameManager != null)        gameManager.shutdown();
         if (uiManager != null)          uiManager.shutdown();
@@ -115,4 +130,8 @@ public final class AstralClash extends JavaPlugin {
     public GameManager           getGameManager()         { return gameManager; }
     public UIManager             getUIManager()           { return uiManager; }
     public ModelEngineService    getModelEngineService()  { return modelEngineService; }
+    public BotManager            getBotManager()          { return botManager; }
+    public ChampionSkinManager   getSkinManager()         { return skinManager; }
+    public CombatUI              getCombatUI()            { return combatUI; }
+    public HealthBarRenderer     getHealthBarRenderer()   { return healthBarRenderer; }
 }

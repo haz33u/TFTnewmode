@@ -63,6 +63,10 @@ public class ShopUI {
     private static final int SLOT_LOCK          = 6;
     private static final int SLOT_BUY_XP        = 7;
     private static final int SLOT_CLOSE         = 8;
+    
+    // Second row
+    private static final int SLOT_BENCH         = 13; // middle of second row
+    private static final int SLOT_BOARD_INFO    = 14;
 
     private final AstralClash plugin;
 
@@ -71,7 +75,7 @@ public class ShopUI {
     // ── Open ─────────────────────────────────────────────────────────────────
 
     public void openShop(ArenaPlayer ap) {
-        Inventory inv = Bukkit.createInventory(null, 9, SHOP_TITLE_COMPONENT);
+        Inventory inv = Bukkit.createInventory(null, 18, SHOP_TITLE_COMPONENT);
         populateShop(inv, ap);
         ap.getPlayer().openInventory(inv);
     }
@@ -109,6 +113,33 @@ public class ShopUI {
 
         // Close
         inv.setItem(SLOT_CLOSE, buildActionItem(Material.BARRIER, "§c§lClose", List.of()));
+        
+        // ── Second row: Info & Bench ──
+        
+        // Fill background
+        for (int i = 9; i < 18; i++) {
+            if (i != SLOT_BENCH && i != SLOT_BOARD_INFO) {
+                inv.setItem(i, buildGlassPane());
+            }
+        }
+        
+        // Bench button
+        int benchCount = ap.getBench().size();
+        inv.setItem(SLOT_BENCH, buildActionItem(Material.CHEST, "§e§l⬛ Open Bench ⬛",
+            List.of("§7Champions waiting: §f" + benchCount + "/9",
+                    "",
+                    "§aClick to open bench",
+                    "§7or use §e/astral bench")));
+        
+        // Board info
+        int deployed = ap.getDeployedCount();
+        int maxDeploy = ap.getBoardSizeLimit();
+        inv.setItem(SLOT_BOARD_INFO, buildActionItem(Material.ARMOR_STAND, "§b§lBoard Info",
+            List.of("§7Deployed: §f" + deployed + "/" + maxDeploy,
+                    "§7Level: §e" + ap.getLevel(),
+                    "",
+                    "§7Right-click ground to place units",
+                    "§7or deploy from bench menu")));
     }
 
     // ── Item builders ─────────────────────────────────────────────────────────
@@ -189,6 +220,14 @@ public class ShopUI {
             default -> Material.STONE;
         };
     }
+    
+    private ItemStack buildGlassPane() {
+        ItemStack item = new ItemStack(Material.PURPLE_STAINED_GLASS_PANE);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text(" "));
+        item.setItemMeta(meta);
+        return item;
+    }
 
     private String wrap(String text, int lineLength) {
         // Simple naive wrap — not ideal but sufficient for lore
@@ -205,4 +244,5 @@ public class ShopUI {
     public static int getLockSlot()           { return SLOT_LOCK; }
     public static int getBuyXpSlot()          { return SLOT_BUY_XP; }
     public static int getCloseSlot()          { return SLOT_CLOSE; }
+    public static int getBenchSlot()          { return SLOT_BENCH; }
 }

@@ -69,10 +69,13 @@ public class HUDRenderer {
 
         int deployed  = ap.getDeployedCount();
         int maxDeploy = ap.getBoardSizeLimit();
+        int roundNum = plugin.getGameManager().getRoundManager() != null
+            ? plugin.getGameManager().getRoundManager().getRoundNumber() : 0;
 
         Component bar = Component.text(
+                "§7R" + roundNum + "  " +
                 "§6♦ " + ap.getGold() + "g  " +
-                "§c♥ " + ap.getHealth() + "HP  " +
+                "§c♥ " + ap.getHealth() + "  " +
                 "§a⬡ " + deployed + "/" + maxDeploy + "  " +
                 "§eLv" + ap.getLevel() + "  " +
                 phaseStr);
@@ -134,8 +137,8 @@ public class HUDRenderer {
                 .limit(5)
                 .forEach(other -> {
                     boolean isSelf = other.getUuid().equals(ap.getUuid());
-                    lines.add((isSelf ? "§e▶ " : "§7  ") +
-                               other.getPlayer().getName() + " §c" + other.getHealth());
+                    String name = other.getPlayer() != null ? other.getPlayer().getName() : "Bot";
+                    lines.add((isSelf ? "§e▶ " : "§7  ") + name + " §c" + other.getHealth());
                 });
 
         // ── Apply to scoreboard ───────────────────────────────────────────────

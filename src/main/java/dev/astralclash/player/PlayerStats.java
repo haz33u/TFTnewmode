@@ -1,10 +1,13 @@
 package dev.astralclash.player;
 
+import java.util.UUID;
+
 /**
  * Persistent statistics stored in the database.
  */
 public class PlayerStats {
 
+    private UUID   uuid;
     private String username = "Unknown";
     private int    gamesPlayed  = 0;
     private int    gamesWon     = 0;
@@ -13,6 +16,11 @@ public class PlayerStats {
     private long   lastSeen     = 0;
 
     public PlayerStats() {}
+    
+    public PlayerStats(UUID uuid, String username) {
+        this.uuid = uuid;
+        this.username = username;
+    }
 
     // ── Mutators ─────────────────────────────────────────────────────────────
 
@@ -24,6 +32,9 @@ public class PlayerStats {
 
     // ── Getters / Setters ────────────────────────────────────────────────────
 
+    public UUID   getUuid()                         { return uuid; }
+    public void   setUuid(UUID uuid)                 { this.uuid = uuid; }
+    
     public String getUsername()                     { return username; }
     public void   setUsername(String username)      { this.username = username; }
 

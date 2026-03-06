@@ -25,9 +25,11 @@ import java.util.UUID;
 public class UIManager {
 
     private final AstralClash plugin;
-    private final ShopUI       shopUI;
-    private final BenchUI      benchUI;
-    private final HUDRenderer  hudRenderer;
+    private final ShopUI          shopUI;
+    private final BenchUI         benchUI;
+    private final MainMenuUI      mainMenuUI;
+    private final HUDRenderer      hudRenderer;
+    private final ArenaViewManager arenaViewManager;
 
     /** Active boss bars per player. */
     private final Map<UUID, BossBar> bossBars = new HashMap<>();
@@ -36,10 +38,12 @@ public class UIManager {
     private BukkitTask hudTask;
 
     public UIManager(AstralClash plugin) {
-        this.plugin      = plugin;
-        this.shopUI      = new ShopUI(plugin);
-        this.benchUI     = new BenchUI(plugin);
-        this.hudRenderer = new HUDRenderer(plugin);
+        this.plugin          = plugin;
+        this.shopUI          = new ShopUI(plugin);
+        this.benchUI         = new BenchUI(plugin);
+        this.mainMenuUI      = new MainMenuUI(plugin);
+        this.hudRenderer     = new HUDRenderer(plugin);
+        this.arenaViewManager = new ArenaViewManager(plugin);
         startHudLoop();
     }
 
@@ -62,6 +66,7 @@ public class UIManager {
      */
     public void broadcastHUD(List<ArenaPlayer> players) {
         for (ArenaPlayer ap : players) {
+            if (ap.getPlayer() == null) continue; // Skip bots for HUD
             hudRenderer.renderActionBar(ap);
             hudRenderer.renderScoreboard(ap, players);
         }
@@ -70,14 +75,17 @@ public class UIManager {
     // ── Shop ─────────────────────────────────────────────────────────────────
 
     public void openShop(ArenaPlayer ap) {
+        if (ap.getPlayer() == null) return; // Bots don't open shops
         shopUI.openShop(ap);
     }
 
     public void closeShop(ArenaPlayer ap) {
+        if (ap.getPlayer() == null) return; // Bots don't have inventories
         ap.getPlayer().closeInventory();
     }
 
     public void refreshShop(ArenaPlayer ap) {
+        if (ap.getPlayer() == null) return; // Bots don't have inventories
         var topInv = ap.getPlayer().getOpenInventory().getTopInventory();
         if (topInv.getViewers().contains(ap.getPlayer())) {
             shopUI.populateShop(topInv, ap);
@@ -87,10 +95,12 @@ public class UIManager {
     // ── Bench ─────────────────────────────────────────────────────────────────
 
     public void openBench(ArenaPlayer ap) {
+        if (ap.getPlayer() == null) return; // Bots don't open benches
         benchUI.openBench(ap);
     }
 
     public void refreshBench(ArenaPlayer ap) {
+        if (ap.getPlayer() == null) return; // Bots don't have inventories
         var topInv = ap.getPlayer().getOpenInventory().getTopInventory();
         if (topInv.getViewers().contains(ap.getPlayer())) {
             benchUI.populateBench(topInv, ap);
@@ -145,6 +155,7 @@ public class UIManager {
         var p = plugin.getServer().getPlayer(uuid);
         if (bar != null && p != null) p.hideBossBar(bar);
         hudRenderer.clearScoreboard(uuid);
+        arenaViewManager.onPlayerLeave(uuid);
     }
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -157,11 +168,43 @@ public class UIManager {
         });
         bossBars.clear();
         hudRenderer.clearAllScoreboards();
+        arenaViewManager.cleanup();
+    }
+
+    // ── Main Menu ──────────────────────────────────────────────────────────────
+
+    public void openMainMenu(ArenaPlayer ap) {
+        if (ap.getPlayer() == null) return;
+        mainMenuUI.openMenu(ap);
+    }
+
+    public void refreshMainMenu(ArenaPlayer ap) {
+        if (ap.getPlayer() == null) return;
+        var topInv = ap.getPlayer().getOpenInventory().getTopInventory();
+        if (topInv.getViewers().contains(ap.getPlayer())) {
+            mainMenuUI.populateMenu(topInv, ap);
+        }
+    }
+
+    // ── Arena View ─────────────────────────────────────────────────────────
+
+    public void toggleArenaView(ArenaPlayer ap) {
+        arenaViewManager.toggleArenaView(ap);
+    }
+
+    public boolean isInArenaView(java.util.UUID uuid) {
+        return arenaViewManager.isInArenaView(uuid);
+    }
+
+    public void stopArenaView(ArenaPlayer ap) {
+        arenaViewManager.stopArenaView(ap);
     }
 
     // ── Accessors ─────────────────────────────────────────────────────────────
 
-    public ShopUI      getShopUI()      { return shopUI; }
-    public BenchUI     getBenchUI()     { return benchUI; }
-    public HUDRenderer getHudRenderer() { return hudRenderer; }
+    public ShopUI          getShopUI()          { return shopUI; }
+    public BenchUI         getBenchUI()         { return benchUI; }
+    public MainMenuUI      getMainMenuUI()      { return mainMenuUI; }
+    public HUDRenderer     getHudRenderer()     { return hudRenderer; }
+    public ArenaViewManager getArenaViewManager() { return arenaViewManager; }
 }

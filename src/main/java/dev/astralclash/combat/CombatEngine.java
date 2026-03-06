@@ -46,6 +46,8 @@ public class CombatEngine {
     private final Map<ChampionInstance, Integer> attackCooldowns = new IdentityHashMap<>();
     // DoT tick accumulator: championInstance → ticks since last DoT proc
     private final Map<ChampionInstance, Integer> dotAccumulator  = new IdentityHashMap<>();
+    /** Damage dealt this round per champion (for post-combat UI). */
+    private final Map<ChampionInstance, Double> lastDamageDealt = new IdentityHashMap<>();
 
     public CombatEngine(AstralClash plugin) {
         this.plugin = plugin;
@@ -63,6 +65,8 @@ public class CombatEngine {
 
         List<ChampionInstance> teamA = new ArrayList<>(boardA.getDeployedChampions());
         List<ChampionInstance> teamB = new ArrayList<>(boardB.getDeployedChampions());
+
+        lastDamageDealt.clear();
 
         if (teamA.isEmpty() && teamB.isEmpty()) return BattleResult.draw(playerA, playerB);
         if (teamA.isEmpty()) return BattleResult.win(playerB, playerA,
@@ -209,6 +213,7 @@ public class CombatEngine {
         }
 
         double dealt = target.takeDamage(dmgToTarget);
+        lastDamageDealt.merge(attacker, dealt, Double::sum);
 
         // Omnivamp healing (also triggers for DESTRUCTION if already proc'd)
         if (attacker.getOmnivampPercent() > 0) {
@@ -235,7 +240,9 @@ public class CombatEngine {
         // PHYSICAL trait: every N-th basic attack deals 50% ATK as bonus true damage
         if (attacker.getPhysicalBonusEveryN() > 0
                 && attacker.getAttackCounter() % attacker.getPhysicalBonusEveryN() == 0) {
-            target.takeTrueDamage(attacker.getAttackDamage() * 0.5);
+            double bonus = attacker.getAttackDamage() * 0.5;
+            target.takeTrueDamage(bonus);
+            lastDamageDealt.merge(attacker, bonus, Double::sum);
         }
 
         // Gepard shield — counter-freeze on hit (25% proc chance)
@@ -261,20 +268,26 @@ public class CombatEngine {
             // ERUDITION: bonus true-damage pulse to all living enemies after ability
             if (attacker.getAoeBonusPercent() > 0) {
                 double bonusDmg = attacker.getAttackDamage() * attacker.getAoeBonusPercent();
+                double totalAoe = 0;
                 for (ChampionInstance enemy : allEnemies) {
                     if (enemy.isAlive()) {
                         enemy.takeTrueDamage(bonusDmg);
+                        totalAoe += bonusDmg;
                     }
                 }
+                if (totalAoe > 0) lastDamageDealt.merge(attacker, totalAoe, Double::sum);
             }
 
             // LIGHTNING: chain chainDamagePercent * ATK as magic damage to a random enemy
             if (attacker.getChainDamagePercent() > 0) {
+                double chainDmg = attacker.getAttackDamage() * attacker.getChainDamagePercent();
                 allEnemies.stream()
                         .filter(ChampionInstance::isAlive)
                         .findAny()
-                        .ifPresent(e -> e.takeMagicDamage(
-                                attacker.getAttackDamage() * attacker.getChainDamagePercent()));
+                        .ifPresent(e -> {
+                            e.takeMagicDamage(chainDmg);
+                            lastDamageDealt.merge(attacker, chainDmg, Double::sum);
+                        });
             }
         }
 
@@ -391,6 +404,14 @@ public class CombatEngine {
         Map<Trait, TraitBonus> active = traitManager.computeActiveTraits(team);
         TraitBonus nb = active.get(Trait.NIHILITY);
         return nb != null ? nb.getDotMultiplier() : 1.0;
+    }
+
+    /**
+     * Returns damage dealt this round per champion (for post-combat UI).
+     * Call after {@link #simulate(ArenaPlayer, ArenaPlayer)}.
+     */
+    public Map<ChampionInstance, Double> getLastDamageDealt() {
+        return new IdentityHashMap<>(lastDamageDealt);
     }
 
     /**

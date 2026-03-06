@@ -6,9 +6,6 @@ description: "TFT-style auto-chess in Minecraft featuring Honkai: Star Rail char
 authors: [ AstralClash Team ]
 website: https://github.com/haz33u/TFTnewmode
 
-depend:
-  - packetevents
-
 softdepend:
   - ModelEngine
 
